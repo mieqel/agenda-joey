@@ -1,0 +1,840 @@
+<title>Meerzicht Agenda</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* Layout: Joey's week as the whole page — availability strip on top, week grid with clickable free slots, booking + details in a side sheet */
+:root{
+  --bg:#e4eaf1; --surface:#ffffff; --surface-2:#f1f4f8; --line:#cbd4df;
+  --fg:#1c232c; --muted:#5d6977; --accent:#1a62b8; --accent-ink:#ffffff; --accent-soft:#d3e5fa;
+  --warn:#d46a0c; --warn-soft:#fdecd8; --ok:#23843c; --ok-soft:#dff3e3; --block:#e6eaf0;
+  --bar:#dfe8f2; --bar-2:#f8fafd; --bar-fg:#1c232c; --bar-muted:#5d6977;
+  --k-training:#fff4a0; --k-intake:#bdf2c6; --k-controle:#b9eef3; --k-groep:#dde1e7; --k-ink:#1c232c;
+  --s-joey:#0e6e78; --s-sanne:#7a4fb0; --s-mark:#b0452f; --s-lotte:#3d6db8;
+  --font-display:"Segoe UI Variable Display","Segoe UI","Figtree",system-ui,sans-serif;
+  --font-body:"Segoe UI Variable Text","Segoe UI","Figtree",system-ui,sans-serif;
+  --font-mono:"JetBrains Mono",ui-monospace,Consolas,monospace;
+  --slot:30px;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161d; --surface:#1a212b; --surface-2:#212a36; --line:#323d4c;
+  --fg:#e4e9f0; --muted:#9ba7b6; --accent:#6aa6ee; --accent-ink:#0a192c; --accent-soft:#1d3350;
+  --warn:#f2a04c; --warn-soft:#3a2814; --ok:#79c98a; --ok-soft:#173222; --block:#222b37;
+  --bar:#161d27; --bar-2:#1e2733; --bar-fg:#e4e9f0; --bar-muted:#9ba7b6;
+  --k-training:#4b4618; --k-intake:#1f4a2b; --k-controle:#174750; --k-groep:#2c3542; --k-ink:#eef2f6;
+  --s-joey:#4fc3cd; --s-sanne:#b592e6; --s-mark:#ec8a74; --s-lotte:#83a9ec; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161d; --surface:#1a212b; --surface-2:#212a36; --line:#323d4c;
+  --fg:#e4e9f0; --muted:#9ba7b6; --accent:#6aa6ee; --accent-ink:#0a192c; --accent-soft:#1d3350;
+  --warn:#f2a04c; --warn-soft:#3a2814; --ok:#79c98a; --ok-soft:#173222; --block:#222b37;
+  --bar:#161d27; --bar-2:#1e2733; --bar-fg:#e4e9f0; --bar-muted:#9ba7b6;
+  --k-training:#4b4618; --k-intake:#1f4a2b; --k-controle:#174750; --k-groep:#2c3542; --k-ink:#eef2f6;
+  --s-joey:#4fc3cd; --s-sanne:#b592e6; --s-mark:#ec8a74; --s-lotte:#83a9ec; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-body);font-size:15px;line-height:1.45}
+.wrap{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:18px 40px;display:flex;flex-direction:column;gap:16px}
+h1,h2,h3{font-family:var(--font-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+h1{font-size:1.55rem} h2{font-size:1.25rem} h3{font-size:1rem}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.label{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.muted{color:var(--muted)}
+.mono{font-family:var(--font-mono);font-variant-numeric:tabular-nums}
+
+.appbar{background:linear-gradient(180deg,var(--bar-2),var(--bar));color:var(--bar-fg);border-bottom:2px solid var(--accent)}
+.appbar-in{max-width:1240px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px}
+.appbar .muted{color:var(--bar-muted)}
+.appbar h1{font-size:1.3rem;font-weight:700;letter-spacing:0}
+.appbar .mark{background:var(--accent);color:var(--accent-ink);border-radius:6px}
+.appbar .who{background:var(--surface);border-color:var(--line);color:var(--fg);border-radius:4px}
+.appbar .who .label{color:var(--bar-muted)}
+.appbar .who select option{color:var(--fg);background:var(--surface)}
+.appbar .demo-tag{background:var(--warn);color:#fff}
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:12px 20px;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:42px;height:42px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--font-display);font-weight:700;font-size:1.2rem}
+.demo-tag{font-size:.75rem;background:var(--warn-soft);color:var(--warn);padding:2px 8px;border-radius:999px;font-weight:600}
+.who{display:flex;align-items:center;gap:8px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:6px 10px}
+.who select{border:0;background:transparent;font-weight:600;padding:2px}
+
+.tabs{display:flex;flex-wrap:wrap;gap:6px;border-bottom:1px solid var(--line)}
+.tab{border:0;background:none;padding:10px 14px;font-weight:600;color:var(--muted);border-bottom:3px solid transparent;margin-bottom:-1px;display:flex;align-items:center;gap:8px}
+.tab[aria-selected="true"]{color:var(--accent);border-color:var(--accent)}
+.badge{background:var(--warn);color:var(--surface);font-size:.72rem;border-radius:999px;padding:1px 7px;font-weight:700}
+
+.btn{border:1px solid var(--line);background:var(--surface);border-radius:10px;padding:8px 14px;font-weight:600}
+.btn:hover{border-color:var(--accent)}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.small{padding:5px 10px;font-size:.85rem}
+.btn.ghost{background:transparent}
+
+/* availability strip */
+.avail{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+@media (max-width:640px){.avail{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.aday{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column;gap:6px}
+.aday.today{border-color:var(--accent)}
+.aday .top2{display:flex;justify-content:space-between;align-items:baseline;gap:6px}
+.bar{height:8px;border-radius:4px;background:var(--surface-2);overflow:hidden;display:flex}
+.bar i{display:block;height:100%}
+.aday small{color:var(--muted);font-size:.8rem}
+.freeN{font-weight:700;color:var(--ok)}
+.freeN.none{color:var(--warn)}
+
+.toolbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.nav{display:flex;align-items:center;gap:8px}
+.nav strong{min-width:150px;text-align:center}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:.82rem;color:var(--muted)}
+.legend span{display:flex;align-items:center;gap:6px}
+.sw{width:14px;height:14px;border-radius:4px;display:inline-block}
+
+/* grid */
+.grid-scroll{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:14px}
+.ghead::first-letter{text-transform:uppercase}
+[hidden]{display:none!important}
+.grid{display:grid;grid-template-columns:52px repeat(5,minmax(130px,1fr));min-width:720px}
+.ghead{background:var(--surface);border-bottom:1px solid var(--line);padding:10px 8px;font-weight:600;font-size:.9rem}
+.ghead.today{color:var(--accent)}
+.times{border-right:1px solid var(--line)}
+.tslot{height:calc(var(--slot)*2);font-size:.72rem;color:var(--muted);text-align:right;padding:2px 6px 0 0;font-variant-numeric:tabular-nums}
+.col{position:relative;border-left:1px solid var(--line);background-image:repeating-linear-gradient(to bottom,transparent 0,transparent calc(var(--slot)*2 - 1px),var(--line) calc(var(--slot)*2 - 1px),var(--line) calc(var(--slot)*2))}
+.off{position:absolute;left:0;right:0;background:repeating-linear-gradient(135deg,var(--block) 0 6px,transparent 6px 12px)}
+.free{position:absolute;left:4px;right:4px;border:1px dashed color-mix(in srgb,var(--ok) 55%,transparent);background:color-mix(in srgb,var(--ok-soft) 55%,transparent);border-radius:6px;color:var(--ok);font-size:.75rem;font-weight:600;opacity:.55;display:flex;align-items:center;padding:0 7px}
+.free:hover,.free:focus-visible{opacity:1;background:var(--ok-soft)}
+.free::before{content:"+ vrij"}
+.free:hover::before{content:"+ inplannen"}
+.ev{position:absolute;left:4px;right:4px;border-radius:7px;padding:3px 7px;border:0;text-align:left;overflow:hidden;font-size:.8rem;line-height:1.25;color:var(--fg);background:var(--k,var(--k-training));color:var(--k-ink);border:1px solid color-mix(in srgb,var(--fg) 14%,transparent);border-left:5px solid var(--c,var(--accent));display:flex;flex-direction:column;box-shadow:0 1px 2px rgba(15,53,99,.08)}
+.ev:hover{filter:brightness(.96);outline:2px solid var(--accent);outline-offset:-1px}
+.ev span{color:color-mix(in srgb,var(--k-ink) 70%,transparent)}
+.ev b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev span{color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:.75rem}
+.ev.blk{background:var(--k-groep);border-left-color:var(--muted)}
+.ev.blk.lunch{background:var(--surface);border-style:dashed}
+.ev .new{position:absolute;top:5px;right:6px;width:8px;height:8px;border-radius:50%;background:var(--warn)}
+.ev.done{opacity:.5}
+.nowline{position:absolute;left:0;right:0;height:2px;background:var(--warn);z-index:1;pointer-events:none}
+
+/* list views */
+.cards{display:flex;flex-direction:column;gap:10px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px;display:flex;gap:14px;align-items:center;text-align:left;width:100%}
+.card:hover{border-color:var(--accent)}
+.card .body{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+.pill{font-size:.75rem;font-weight:700;padding:2px 9px;border-radius:999px;white-space:nowrap}
+.pill.nieuw{background:var(--warn-soft);color:var(--warn)}
+.pill.ok{background:var(--ok-soft);color:var(--ok)}
+.avatar{width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-weight:700;flex:none;background:var(--surface-2);font-size:.9rem}
+.empty{padding:28px;text-align:center;color:var(--muted);background:var(--surface);border:1px dashed var(--line);border-radius:14px}
+.when{font-family:var(--font-mono);font-size:.85rem;text-align:center;min-width:64px;line-height:1.2}
+.when b{display:block;font-size:1.05rem}
+
+.pgrid{display:grid;grid-template-columns:minmax(0,280px) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:760px){.pgrid{grid-template-columns:minmax(0,1fr)}}
+.plist{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}
+.plist input{border:0;border-bottom:1px solid var(--line);padding:12px 14px;background:transparent}
+.pitem{border:0;background:none;text-align:left;padding:10px 14px;display:flex;gap:10px;align-items:center;border-bottom:1px solid var(--line)}
+.pitem:last-child{border-bottom:0}
+.pitem[aria-current="true"]{background:var(--accent-soft)}
+.pitem .avatar{width:32px;height:32px;font-size:.78rem}
+.profile{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:18px;min-width:0}
+.facts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.facts div{display:flex;flex-direction:column;gap:2px}
+
+.tbl-wrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th{text-align:left;font-size:.72rem;text-transform:uppercase;letter-spacing:.07em;color:var(--muted);font-weight:600;padding:6px 8px;border-bottom:1px solid var(--line)}
+td{padding:7px 8px;border-bottom:1px solid var(--line);vertical-align:middle}
+tr:last-child td{border-bottom:0}
+td input{width:100%;min-width:60px;padding:5px 7px;border:1px solid var(--line);border-radius:6px;background:var(--surface-2)}
+td input.num{width:58px;min-width:0;font-family:var(--font-mono);text-align:center}
+.setsreps{font-family:var(--font-mono);font-weight:500;white-space:nowrap;font-size:1rem}
+.x{color:var(--muted);padding:0 3px}
+.icon-btn{border:0;background:none;color:var(--muted);padding:4px 7px;border-radius:6px;font-size:1.1rem;line-height:1}
+.icon-btn:hover{color:var(--warn);background:var(--warn-soft)}
+
+.overlay{position:fixed;inset:0;background:rgba(8,20,24,.45);z-index:20;display:flex;justify-content:flex-end}
+.sheet{background:var(--bg);width:min(580px,100%);height:100%;overflow-y:auto;padding-bottom:calc(32px + env(safe-area-inset-bottom,0px));padding-left:max(20px,env(safe-area-inset-left,0px));padding-right:max(20px,env(safe-area-inset-right,0px));padding-top:calc(20px + env(safe-area-inset-top,0px));display:flex;flex-direction:column;gap:14px;box-shadow:-10px 0 30px rgba(0,0,0,.2);animation:slide .2s ease-out}
+@keyframes slide{from{transform:translateX(30px);opacity:.4}}
+@media (prefers-reduced-motion:reduce){.sheet{animation:none}}
+.sheet-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.box{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:10px}
+.box.todo{border-left:4px solid var(--warn)}
+.todo-text{white-space:pre-wrap}
+.from{display:flex;align-items:center;gap:10px}
+.from .avatar{width:32px;height:32px;font-size:.8rem;color:var(--surface)}
+.actions{display:flex;flex-wrap:wrap;gap:8px}
+.form{display:flex;flex-direction:column;gap:12px}
+.field{display:flex;flex-direction:column;gap:4px;min-width:0}
+.field input,.field select,.field textarea{padding:8px 10px;border:1px solid var(--line);border-radius:8px;background:var(--surface)}
+.field textarea{min-height:76px;resize:vertical}
+.frow{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px}
+.seg{display:inline-flex;background:var(--surface-2);border-radius:10px;padding:3px;align-self:flex-start}
+.seg button{border:0;background:none;padding:6px 12px;border-radius:8px;font-weight:600;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.err{background:var(--warn-soft);color:var(--warn);padding:8px 10px;border-radius:8px;font-weight:600;font-size:.9rem}
+.hint{font-size:.82rem;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--fg);color:var(--bg);padding:10px 18px;border-radius:10px;font-weight:600;z-index:30;max-width:calc(100% - 32px);text-align:center}
+
+/* rondleiding + hulpknop */
+.helpbtn{position:fixed;right:calc(18px + env(safe-area-inset-right,0px));bottom:calc(18px + env(safe-area-inset-bottom,0px));z-index:15;display:flex;align-items:center;gap:8px;border:0;border-radius:999px;background:var(--accent);color:var(--accent-ink);padding:10px 16px 10px 10px;font-weight:700;box-shadow:0 6px 18px rgba(0,0,0,.22)}
+.helpbtn i{width:28px;height:28px;border-radius:50%;background:var(--accent-ink);color:var(--accent);display:grid;place-items:center;font-style:normal;font-family:var(--font-display);font-size:1.1rem}
+.helpbtn:hover{transform:translateY(-1px)}
+.tour{position:fixed;inset:0;z-index:40}
+.tour-shade{position:absolute;inset:0;background:rgba(8,20,24,.55)}
+.spot{position:absolute;border-radius:12px;box-shadow:0 0 0 9999px rgba(8,20,24,.55),0 0 0 3px var(--accent);transition:all .25s ease;pointer-events:none}
+.tcard{position:absolute;width:min(360px,calc(100vw - 32px));background:var(--surface);color:var(--fg);border-radius:14px;padding:18px;box-shadow:0 14px 40px rgba(0,0,0,.3);display:flex;flex-direction:column;gap:12px;transition:top .25s ease,left .25s ease}
+.tcard p{margin:0}
+.tdots{display:flex;gap:5px}
+.tdots i{width:7px;height:7px;border-radius:50%;background:var(--line)}
+.tdots i.on{background:var(--accent);width:18px;border-radius:4px}
+.tfoot{display:flex;flex-wrap:wrap;gap:8px;justify-content:space-between;align-items:center;border-top:1px solid var(--line);padding-top:12px}
+.linkbtn{border:0;background:none;color:var(--muted);text-decoration:underline;padding:4px 0;font-size:.88rem}
+.linkbtn:hover{color:var(--fg)}
+.kbd{font-family:var(--font-mono);font-size:.8rem;background:var(--surface-2);border:1px solid var(--line);border-bottom-width:2px;border-radius:5px;padding:0 5px}
+@media (prefers-reduced-motion:reduce){.spot,.tcard{transition:none}}
+.ev .shared{display:inline-flex;align-items:center;gap:3px;font-size:.68rem;font-weight:700;color:var(--warn);white-space:nowrap}
+.warnbox{background:var(--warn-soft);border-radius:10px;padding:10px 12px;display:flex;flex-direction:column;gap:6px;font-size:.92rem}
+.warnbox strong{color:var(--warn)}
+.box,.card,.grid-scroll,.plist,.profile,.tcard,.dlist{border-radius:10px;box-shadow:0 1px 2px rgba(20,40,70,.06),0 2px 8px rgba(20,40,70,.04)}
+.btn{border-radius:8px;padding:7px 14px;transition:background .15s,border-color .15s,box-shadow .15s}
+.btn.primary{box-shadow:0 2px 6px color-mix(in srgb,var(--accent) 35%,transparent)}
+.btn.primary:hover{background:color-mix(in srgb,var(--accent) 88%,#000)}
+.ev{border-radius:5px}
+.appbar{background:color-mix(in srgb,var(--surface) 85%,transparent);backdrop-filter:blur(12px);border-bottom:1px solid var(--line)!important;box-shadow:0 1px 0 var(--line)}
+.tabs{border-bottom:0;gap:4px;background:var(--surface-2);padding:4px;border-radius:10px;align-self:flex-start}
+.tab{border:0;border-radius:7px;margin:0;padding:7px 14px}
+.tab[aria-selected="true"]{background:var(--surface);color:var(--fg);box-shadow:0 1px 3px rgba(20,40,70,.12)}
+/* moderne navigatiebalk */
+.navbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:8px 10px;box-shadow:0 1px 2px rgba(20,40,70,.06)}
+.ibtn{width:34px;height:34px;border-radius:8px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;color:var(--fg)}
+.ibtn:hover{background:var(--surface-2)}
+.ibtn svg{width:16px;height:16px}
+.todaybtn{border-radius:999px;border:1px solid var(--accent);color:var(--accent);background:var(--accent-soft);font-weight:700;padding:6px 14px}
+.daystrip{display:flex;gap:6px;flex:1;min-width:0;overflow-x:auto;padding:2px}
+.dchip{flex:1;min-width:64px;border:1px solid transparent;background:var(--surface-2);border-radius:10px;padding:5px 8px;display:flex;flex-direction:column;align-items:center;line-height:1.15;color:var(--fg)}
+.dchip small{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+.dchip b{font-size:1.05rem}
+.dchip i{font-style:normal;font-size:.7rem;color:var(--muted)}
+.dchip:hover{border-color:var(--accent)}
+.dchip.today b{color:var(--accent)}
+.dchip[aria-current="true"]{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.dchip[aria-current="true"] small,.dchip[aria-current="true"] i{color:color-mix(in srgb,var(--accent-ink) 80%,transparent)}
+.dchip.offday{opacity:.45}
+.viewseg button{display:flex;align-items:center;gap:6px}
+.viewseg svg{width:15px;height:15px}
+.kbdhint{font-size:.75rem;color:var(--muted)}
+/* soort-keuze */
+.kinds{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px}
+.kind{border:2px solid var(--line);background:var(--surface);border-radius:10px;padding:10px 12px;text-align:left;display:flex;gap:10px;align-items:center}
+.kind .sw2{width:26px;height:26px;border-radius:7px;background:var(--k);border:1px solid color-mix(in srgb,var(--fg) 15%,transparent);flex:none;display:grid;place-items:center}
+.kind .sw2 svg{width:15px;height:15px;color:var(--k-ink)}
+.kind b{display:block;font-size:.92rem}
+.kind small{color:var(--muted);font-size:.76rem;line-height:1.2;display:block}
+.kind:hover{border-color:color-mix(in srgb,var(--accent) 50%,var(--line))}
+.kind[aria-checked="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.datehead{color:var(--accent);font-weight:600;font-size:1rem}
+/* dag-lijst in Intramed-stijl */
+.dlist{background:var(--surface);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.drow{display:grid;grid-template-columns:64px minmax(0,1fr) auto;align-items:stretch;border-bottom:1px solid var(--line);width:100%;border-left:0;border-right:0;border-top:0;padding:0;text-align:left;background:var(--surface);font-size:.92rem}
+.drow:last-child{border-bottom:0}
+.drow .t{padding:7px 10px;font-family:var(--font-mono);font-size:.85rem;color:var(--muted);border-right:1px solid var(--line);display:flex;align-items:center}
+.drow .c{padding:7px 12px;display:flex;gap:10px;align-items:center;min-width:0;background:var(--k,transparent);color:var(--k-ink);border-left:5px solid var(--c,transparent)}
+.drow .c b{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drow .c small{color:color-mix(in srgb,var(--k-ink) 70%,transparent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.drow .r{padding:7px 12px;display:flex;align-items:center;gap:8px;background:var(--k,transparent);color:var(--k-ink);font-size:.82rem;white-space:nowrap}
+.drow.dfree .c{color:var(--ok);font-weight:600}
+.drow:hover .c,.drow:hover .r{filter:brightness(.95)}
+.drow.doff{background:var(--surface-2);cursor:default}
+.drow.doff .c{color:var(--muted)}
+</style>
+
+<div class="appbar"><div class="appbar-in">
+  <header class="top">
+    <div class="brand">
+      <div class="mark" aria-hidden="true">J</div>
+      <div>
+        <h1>Agenda Joey</h1>
+        <div class="muted" style="font-size:.85rem">Personal training &amp; revalidatie · Fysiotherapie Meerzicht · <span class="demo-tag">Demo, voorbeelddata</span></div>
+      </div>
+    </div>
+    <label class="who"><span class="label">Wie ben jij?</span><select id="me"></select></label>
+  </header>
+</div></div>
+<div class="wrap">
+  <nav class="tabs" role="tablist">
+    <button class="tab" role="tab" data-view="agenda" aria-selected="true">Agenda</button>
+    <button class="tab" role="tab" data-view="new" aria-selected="false" id="newTab">Meldingen <span class="badge" id="newBadge" hidden></span></button>
+    <button class="tab" role="tab" data-view="patients" aria-selected="false">Patiënten</button>
+  </nav>
+
+  <main id="view"></main>
+</div>
+<div id="layer"></div>
+<button class="helpbtn" id="helpBtn" aria-label="Uitleg bekijken"><i aria-hidden="true">?</i>Hulp</button>
+<div id="tourLayer"></div>
+
+<script>
+/* ---------- voorbeelddata ---------- */
+const STAFF=[
+  {id:'joey',name:'Joey',full:'Joey Inge',role:'Personal trainer',hue:186},
+  {id:'anouk',name:'Anouk',full:'Anouk Zwarteveld',role:'Fysiotherapeut, bekkenfysiotherapeut',hue:330},
+  {id:'diana',name:'Diana',full:'Diana Ketelaars',role:'Praktijkmanager',hue:215},
+  {id:'guido',name:'Guido',full:'Guido de Rijk',role:'Fysiotherapeut, oedeemfysiotherapeut',hue:95},
+  {id:'jasper',name:'Jasper',full:'Jasper de Koning',role:'Fysiotherapeut, manueel therapeut',hue:12},
+  {id:'jeannette',name:'Jeannette',full:'Jeannette van Rooyen',role:'Fysiotherapeut, manueel therapeut',hue:280},
+  {id:'joeyve',name:'Joey v. Eeden',full:'Joey van Eeden',role:'Fysiotherapeut, manueel therapeut i.o.',hue:160},
+  {id:'joyce',name:'Joyce',full:'Joyce Vermeulen',role:'Praktijkmanager',hue:240},
+  {id:'marloes',name:'Marloes',full:'Marloes de Rijk',role:'Fysiotherapeut, kinderfysiotherapeut',hue:300},
+  {id:'maddy',name:'Maddy',full:'Maddy de Jong',role:'Fysiotherapeut',hue:350},
+  {id:'martin',name:'Martin',full:'Martin Vermeulen',role:'Fysiotherapeut, geriatriefysiotherapeut',hue:265},
+  {id:'perry',name:'Perry',full:'Perry Paauw',role:'Fysiotherapeut',hue:35},
+  {id:'tessa',name:'Tessa',full:'Tessa Fleury',role:'Fysiotherapeut, manueel therapeut',hue:200},
+  {id:'thomas',name:'Thomas',full:'Thomas Eijgendaal',role:'Fysiotherapeut, psychosomatisch i.o.',hue:55},
+  {id:'viresh',name:'Viresh',full:'Viresh Khoesial',role:'Fysiotherapeut, manueel therapeut',hue:125}
+];
+/* één kleur per collega, in licht en donker thema */
+(()=>{const L=STAFF.map(x=>`--s-${x.id}:hsl(${x.hue} 55% 38%)`).join(';'),D=STAFF.map(x=>`--s-${x.id}:hsl(${x.hue} 60% 68%)`).join(';');
+ const st=document.createElement('style');st.textContent=`:root{${L}}@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){${D}}}:root[data-theme="dark"]{${D}}`;document.head.appendChild(st)})();
+const ini=x=>x.full.split(' ').filter(w=>/^[A-Z]/.test(w)).map(w=>w[0]).join('').slice(0,2);
+const staff=id=>STAFF.find(s=>s.id===id);
+const h=(hh,mm=0)=>hh*60+mm;
+
+/* Joey's werktijden per weekdag (1=ma) en vaste blokken */
+const HOURS={1:[h(8),h(17)],2:[h(8),h(17)],3:[h(8),h(12,30)],4:[h(8),h(17)],5:[h(8),h(13)]};
+const FIXED=[
+  {wd:1,start:h(14),dur:60,title:'Groepsles senioren'},
+  {wd:3,start:h(9),dur:60,title:'Groepsles senioren'},
+  {wd:1,start:h(12,30),dur:30,title:'Lunch'},{wd:2,start:h(12,30),dur:30,title:'Lunch'},{wd:4,start:h(12,30),dur:30,title:'Lunch'}
+];
+
+let PATIENTS=[
+ {id:1,name:'Henk de Vries',born:1951,goal:'Weer zelfstandig fietsen naar de markt',complaint:'Na knieprothese rechts',notes:'Kniebuiging nog max. ~100°. Geen diepe squats.'},
+ {id:2,name:'Ria Bakker',born:1946,goal:'Valrisico verlagen',complaint:'Verminderde balans',notes:'Liever ochtendafspraken.'},
+ {id:3,name:'Mohamed El Amrani',born:1979,goal:'Terug naar werk in de bouw',complaint:'Lage rugklachten',notes:''},
+ {id:4,name:'Els van Dijk',born:1958,goal:'Arm weer boven hoofd',complaint:'Frozen shoulder links',notes:''},
+ {id:5,name:'Piet Jansen',born:1948,goal:'Conditie behouden',complaint:'Na hartrevalidatie',notes:'Hartslag max. 120.'},
+ {id:6,name:'Bob Smit',born:1963,goal:'Sterker bovenbeen na meniscusoperatie',complaint:'Meniscus links, 8 weken post-op',notes:''}
+];
+const patient=id=>PATIENTS.find(p=>p.id===id);
+
+/* afspraken in Joey's agenda: by = wie het heeft ingepland */
+let APPTS=[
+ {id:1,p:1,date:'2026-10-19',start:h(9),dur:45,by:'martin',todo:'Opstaan uit stoel en traplopen. Knie max. 100° buigen.',ex:[{n:'Sit-to-stand',s:3,r:10,l:'stoel 46 cm'},{n:'Step-up',s:3,r:8,l:'20 cm, per been'}],seen:true},
+ {id:2,p:2,date:'2026-10-19',start:h(10),dur:45,by:'jasper',todo:'Balans en loopzekerheid.',ex:[{n:'Tandemstand',s:3,r:'30 s',l:'naast wand'},{n:'Zijwaarts stappen met band',s:3,r:10,l:''}],seen:true},
+ {id:3,p:3,date:'2026-10-20',start:h(8,30),dur:60,by:'joey',todo:'Krachttraining week 4.',ex:[{n:'Trap bar deadlift',s:4,r:6,l:'60 kg'},{n:'Kabel roeien',s:3,r:12,l:'30 kg'}],seen:true},
+ {id:4,p:1,date:'2026-10-20',start:h(11),dur:45,by:'martin',todo:'Zelfde als maandag, step-up naar 25 cm als het goed gaat.',ex:[{n:'Sit-to-stand',s:3,r:10,l:''},{n:'Step-up',s:3,r:8,l:'25 cm'}],seen:true},
+ {id:5,kind:'intake',p:6,date:'2026-10-20',start:h(14),dur:45,by:'jasper',todo:'Eerste training na meniscus. Focus op quadriceps, rustig opbouwen. Geen draaibewegingen.',ex:[{n:'Leg extension',s:3,r:15,l:'licht, pijnvrij'},{n:'Leg press',s:3,r:12,l:'30 kg'},{n:'Hometrainer',s:1,r:'10 min',l:'warming-up'}],seen:false},
+ {id:6,p:5,date:'2026-10-21',start:h(10,30),dur:45,by:'joey',todo:'Conditie.',ex:[{n:'Loopband',s:1,r:'15 min',l:'4,5 km/u'},{n:'Leg press',s:3,r:12,l:'40 kg'}],seen:true},
+ {id:7,kind:'controle',p:4,date:'2026-10-22',start:h(9),dur:30,by:'jasper',todo:'Schouderstabiliteit opbouwen. Exorotatie vindt ze nog lastig.',ex:[],seen:false,
+  paste:'Oefenprogramma - E. van Dijk\n\n1. Exorotatie schouder met elastiek (geel)\n   3 x 15, langzaam terug\n2. Wall slides\n   3 x 10\n3. Pendeloefening\n   2 x 30 sec\n\nBij pijn > 4/10 gewicht/weerstand terug.'},
+ {id:8,p:2,date:'2026-10-22',start:h(10),dur:45,by:'diana',todo:'Vervolgafspraak op verzoek van patiënt.',ex:[],seen:true},
+ {id:9,p:3,date:'2026-10-23',start:h(8,30),dur:60,by:'joey',todo:'Krachttraining week 4.',ex:[{n:'Trap bar deadlift',s:4,r:6,l:'62,5 kg'}],seen:true},
+ {id:10,p:6,date:'2026-10-27',start:h(14),dur:45,by:'jasper',todo:'Vervolg Bob. Leg extension 3×15, gewicht iets omhoog als het pijnvrij was.',ex:[{n:'Leg extension',s:3,r:15,l:'+2,5 kg'},{n:'Leg press',s:3,r:12,l:'35 kg'}],seen:false},
+ {id:11,kind:'intake',p:null,newName:'Wim Kuipers',date:'2026-10-21',start:h(8),dur:60,by:'diana',todo:'Nieuwe aanmelding via huisarts, 72 jaar. Wil sterker worden voor het fietsen. Intake graag. Tel: 06 40 50 60 70',ex:[],seen:false},
+ {id:12,p:5,date:'2026-10-20',start:h(11),dur:45,by:'joeyve',todo:'Piet mag aansluiten bij de training van Henk. Conditie op de hometrainer, hartslag max. 120.',ex:[{n:'Hometrainer',s:1,r:'20 min',l:'HF max 120'},{n:'Chest press',s:3,r:12,l:'15 kg'}],seen:false}
+];
+
+/* ---------- meldingen: wie heeft wat gedaan ---------- */
+const NOWTS='2026-10-20T10:55';
+let LOG=[];
+function logIt(who,act,a,at,extra){LOG.unshift({id:LOG.length+1,who,act,appt:a.id,pname:pName(a),date:a.date,start:a.start,at:at||NOWTS,read:who==='joey',...extra})}
+function seedLog(){[['martin','add',1,'2026-10-15T14:02',1],['diana','add',8,'2026-10-16T11:20',1],['martin','add',4,'2026-10-17T09:10',1],
+ ['jasper','add',5,'2026-10-19T16:42'],['jasper','add',10,'2026-10-19T16:44'],['jasper','add',7,'2026-10-20T08:05'],
+ ['diana','add',11,'2026-10-20T09:31'],['joeyve','add',12,'2026-10-20T10:12',0,{note:'tegelijk met Henk de Vries'}],['martin','edit',4,'2026-10-20T09:50',0,{note:'instructie aangepast'}]]
+ .forEach(([w,act,id,at,read,extra])=>{logIt(w,act,APPTS.find(a=>a.id===id),at,extra);LOG[0].read=!!read});
+LOG.sort((a,b)=>b.at.localeCompare(a.at))}
+function fmtAgo(ts){const d=ts.slice(0,10),t=ts.slice(11,16);return d===TODAY?`vandaag ${t}`:d===addDays(TODAY,-1)?`gisteren ${t}`:`${fmtDate(d)} ${t}`}
+const ACT={add:'heeft ingepland',edit:'heeft aangepast',move:'heeft verzet',del:'heeft verwijderd'};
+const unread=()=>LOG.filter(l=>!l.read&&l.who!=='joey');
+
+/* ---------- state ---------- */
+const TODAY='2026-10-20', NOW=h(10,30);
+const S={me:'jasper',view:'agenda',mode:'week',day:TODAY,weekStart:'2026-10-19',pSel:1,pFilter:''};
+let nextId=100;
+
+/* ---------- helpers ---------- */
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const d2=s=>new Date(s+'T12:00:00');
+const iso=d=>d.toISOString().slice(0,10);
+const addDays=(s,n)=>{const d=d2(s);d.setDate(d.getDate()+n);return iso(d)};
+const wday=s=>d2(s).getDay();
+const DAYS=['zo','ma','di','wo','do','vr','za'];
+const DAYSL=['zondag','maandag','dinsdag','woensdag','donderdag','vrijdag','zaterdag'];
+const MONTHS=['jan','feb','mrt','apr','mei','jun','jul','aug','sep','okt','nov','dec'];
+const fmtDate=s=>{const d=d2(s);return `${DAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`};
+const fmtLong=s=>{const d=d2(s);return `${DAYSL[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`};
+const fmtTime=m=>`${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+const initials=n=>n.split(' ').filter(w=>/^[A-Z]/.test(w)).map(w=>w[0]).slice(0,2).join('');
+const pName=a=>a.p?patient(a.p).name:(a.newName||'—');
+const GRID0=h(8),GRID1=h(17);
+const isJoey=()=>S.me==='joey';
+function avatarHTML(id,size){const x=staff(id);return `<div class="avatar" title="${x.full}" style="background:var(--s-${id});color:var(--surface);${size?`width:${size}px;height:${size}px;font-size:${size/2.6}px`:''}">${ini(x)}</div>`}
+function toast(msg){const t=document.createElement('div');t.className='toast';t.textContent=msg;document.body.appendChild(t);setTimeout(()=>t.remove(),2600)}
+
+const KINDS={training:'Training',intake:'Intake',controle:'Controle'};
+const KDESC={training:'Gewone sessie',intake:'Eerste keer / nieuw',controle:'Evaluatie, testen'};
+const KICON={training:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M2 8h12M4 5v6M12 5v6M1 7v2M15 7v2"/></svg>',
+ intake:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="7" cy="5" r="2.5"/><path d="M2.5 14c.5-3 2.3-4.5 4.5-4.5M12 10v4M10 12h4"/></svg>',
+ controle:'<svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="2" width="10" height="12" rx="2"/><path d="m5.5 8.5 1.8 1.8L10.5 6.5"/></svg>'};
+/* bezette blokken op een datum (afspraken + vaste blokken) */
+function busy(date,ignoreId){
+  const wd=wday(date);
+  return [...FIXED.filter(f=>f.wd===wd).map(f=>({start:f.start,dur:f.dur,fixed:true,title:f.title})),
+          ...APPTS.filter(a=>a.date===date&&a.id!==ignoreId)];
+}
+function conflict(date,start,dur,ignoreId){
+  const hrs=HOURS[wday(date)];
+  if(!hrs)return 'Joey werkt niet op deze dag.';
+  if(start<hrs[0]||start+dur>hrs[1])return `Buiten werktijd. Joey werkt ${fmtLong(date)} van ${fmtTime(hrs[0])} tot ${fmtTime(hrs[1])}.`;
+  const hit=busy(date,ignoreId).find(b=>b.fixed&&start<b.start+b.dur&&b.start<start+dur);
+  if(hit)return `Joey heeft dan ${hit.title.toLowerCase()} (${fmtTime(hit.start)}–${fmtTime(hit.start+hit.dur)}).`;
+  return null;
+}
+/* patiënten die op dat moment al bij Joey zijn (mag, maar zijn aandacht wordt verdeeld) */
+function overlaps(date,start,dur,ignoreId){return APPTS.filter(a=>a.date===date&&a.id!==ignoreId&&start<a.start+a.dur&&a.start<start+dur)}
+const listNames=arr=>{const n=arr.map(a=>pName(a));return n.length<2?n.join(''):n.slice(0,-1).join(', ')+' en '+n[n.length-1]};
+function freeSlots(date){
+  const hrs=HOURS[wday(date)]; if(!hrs)return [];
+  const out=[];
+  for(let t=hrs[0];t+30<=hrs[1];t+=30){
+    if(date===TODAY&&t<NOW)continue;
+    if(!conflict(date,t,30)&&!overlaps(date,t,30).length)out.push(t);
+  }
+  return out;
+}
+
+/* ---------- shell ---------- */
+$('#me').innerHTML=STAFF.map(s=>`<option value="${s.id}">${s.full}${s.id==='joey'?' (eigenaar agenda)':''}</option>`).join('');
+$('#me').value=S.me;
+$('#me').onchange=e=>{S.me=e.target.value;if(!isJoey()&&S.view==='new')S.view='agenda';render()};
+document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{S.view=b.dataset.view;render()});
+
+function render(){
+  $('#newTab').hidden=!isJoey();
+  document.querySelectorAll('.tab').forEach(b=>b.setAttribute('aria-selected',b.dataset.view===S.view));
+  const n=unread().length;
+  const bd=$('#newBadge');bd.hidden=!n;bd.textContent=n;
+  ({agenda:renderAgenda,new:renderNew,patients:renderPatients})[S.view]();
+}
+
+/* ---------- agenda ---------- */
+function renderAgenda(){
+  const days=[0,1,2,3,4].map(i=>addDays(S.weekStart,i));
+  const v=$('#view');
+  v.innerHTML=`
+  <div style="display:flex;flex-direction:column;gap:14px">
+    ${isJoey()?(unread().length?`<button class="card" id="goLog" style="border-color:var(--warn);background:var(--warn-soft)">${avatarHTML(unread()[0].who)}<div class="body"><strong>${unread().length} nieuwe wijziging${unread().length>1?'en':''} in je agenda</strong><span style="font-size:.9rem">Laatste: ${staff(unread()[0].who).name} ${ACT[unread()[0].act]} ${esc(unread()[0].pname)} · ${fmtDate(unread()[0].date)} ${fmtTime(unread()[0].start)}</span></div><span class="pill nieuw">Bekijk</span></button>`:''):`<div class="box" style="flex-direction:row;align-items:center;gap:12px;padding:10px 14px">${avatarHTML(S.me)}<div>Hoi ${staff(S.me).name}. Klik op een <strong style="color:var(--ok)">groen vrij vak</strong> om een patiënt bij Joey in te plannen. Joey ziet dat jij het hebt ingepland.</div></div>`}
+    <div class="navbar">
+      <div class="nav" style="gap:6px">
+        <button class="ibtn" id="prev" aria-label="${S.mode==='dag'?'Vorige dag':'Vorige week'}" title="Vorige (←)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10 3 5 8l5 5"/></svg></button>
+        <button class="ibtn" id="next" aria-label="${S.mode==='dag'?'Volgende dag':'Volgende week'}" title="Volgende (→)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 3 5 5-5 5"/></svg></button>
+        <button class="todaybtn" id="today" title="Vandaag (T)">Vandaag</button>
+      </div>
+      <div style="display:flex;flex-direction:column;min-width:150px">
+        <span class="datehead">${S.mode==='dag'?fmtLong(S.day):`Week ${weekNo(S.weekStart)}`}</span>
+        <span class="kbdhint">${S.mode==='dag'?`week ${weekNo(S.day)} · oktober 2026`:`${fmtDate(days[0])} – ${fmtDate(days[4])} 2026`}</span>
+      </div>
+      <div class="daystrip" role="group" aria-label="Kies een dag">${days.map(d=>{const n=APPTS.filter(a=>a.date===d).length,dt=d2(d);return `<button class="dchip ${d===TODAY?'today':''} ${HOURS[wday(d)]?'':'offday'}" data-day="${d}" aria-current="${S.mode==='dag'&&S.day===d}"><small>${DAYS[dt.getDay()]}</small><b>${dt.getDate()}</b><i>${n?n+' afspr.':'leeg'}</i></button>`}).join('')}</div>
+      <div class="seg viewseg" role="group" aria-label="Weergave">
+        <button data-mode="dag" aria-pressed="${S.mode==='dag'}" title="Dag (D)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 4h10M3 8h10M3 12h10"/></svg>Dag</button>
+        <button data-mode="week" aria-pressed="${S.mode!=='dag'}" title="Week (W)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="2" y="3" width="12" height="10" rx="2"/><path d="M6 3v10M10 3v10"/></svg>Week</button>
+      </div>
+      <button class="btn primary" id="book">+ Inplannen</button>
+    </div>
+    <div class="legend">
+      ${Object.entries(KINDS).map(([k,n])=>`<span><i class="sw" style="background:var(--k-${k});border:1px solid var(--line)"></i>${n}</span>`).join('')}
+      <span><i class="sw" style="background:var(--k-groep);border:1px solid var(--line)"></i>Groepsles</span>
+      <span><i class="sw" style="background:var(--ok-soft);border:1px dashed var(--ok)"></i>Vrij</span>
+      <span><i class="sw" style="background:repeating-linear-gradient(135deg,var(--block) 0 3px,transparent 3px 6px);border:1px solid var(--line)"></i>Niet aanwezig</span>
+      <span><i class="sw" style="background:var(--muted);width:4px"></i>Rand = wie het inplande</span>
+      <span style="margin-left:auto">Sneltoetsen: <span class="kbd">←</span> <span class="kbd">→</span> <span class="kbd">T</span> vandaag · <span class="kbd">D</span>/<span class="kbd">W</span> · <span class="kbd">N</span> nieuw</span>
+    </div>
+    ${S.mode==='dag'?dayList(S.day):`<div class="grid-scroll"><div class="grid">
+      <div class="ghead"></div>
+      ${days.map(d=>`<div class="ghead ${d===TODAY?'today':''}">${fmtDate(d)}</div>`).join('')}
+      <div class="times">${Array.from({length:(GRID1-GRID0)/60},(_,i)=>`<div class="tslot">${fmtTime(GRID0+i*60)}</div>`).join('')}</div>
+      ${days.map(colHTML).join('')}
+    </div></div>`}
+  </div>`;
+  const stepDay=n=>{let d=addDays(S.day,n);while(!HOURS[wday(d)])d=addDays(d,n);S.day=d;S.weekStart=addDays(d,-((wday(d)+6)%7));render()};
+  $('#prev').onclick=()=>{if(S.mode==='dag')stepDay(-1);else{S.weekStart=addDays(S.weekStart,-7);render()}};
+  $('#next').onclick=()=>{if(S.mode==='dag')stepDay(1);else{S.weekStart=addDays(S.weekStart,7);render()}};
+  $('#today').onclick=()=>{S.weekStart='2026-10-19';S.day=TODAY;render()};
+  v.querySelectorAll('[data-day]').forEach(b=>b.onclick=()=>{S.day=b.dataset.day;S.mode='dag';render()});
+  v.querySelectorAll('[data-mode]').forEach(b=>b.onclick=()=>{S.mode=b.dataset.mode;if(S.mode==='dag'&&(S.day<S.weekStart||S.day>addDays(S.weekStart,4)))S.day=S.weekStart;render()});
+  v.querySelectorAll('.drow[data-free]').forEach(b=>b.onclick=()=>openBooking({date:S.day,start:+b.dataset.free}));
+  v.querySelectorAll('.drow[data-id]').forEach(b=>b.onclick=()=>openAppt(+b.dataset.id));
+  $('#book').onclick=()=>openBooking({});
+  $('#goLog')&&($('#goLog').onclick=()=>{S.view='new';render()});
+  v.querySelectorAll('.free').forEach(b=>b.onclick=()=>openBooking({date:b.dataset.d,start:+b.dataset.t}));
+  v.querySelectorAll('.ev[data-id]').forEach(b=>b.onclick=()=>openAppt(+b.dataset.id));
+}
+function dayList(date){
+  const hrs=HOURS[wday(date)];
+  if(!hrs)return `<div class="empty">Joey werkt niet op ${fmtLong(date)}.</div>`;
+  const rows=[];
+  FIXED.filter(f=>f.wd===wday(date)).forEach(f=>rows.push({t:f.start,html:`<div class="drow doff" style="--k:${f.title==='Lunch'?'transparent':'var(--k-groep)'}"><div class="t">${fmtTime(f.start)}</div><div class="c"><b>${esc(f.title)}</b><small>${fmtTime(f.start)}–${fmtTime(f.start+f.dur)}</small></div><div class="r"></div></div>`}));
+  APPTS.filter(a=>a.date===date).forEach(a=>{const sh=overlaps(date,a.start,a.dur,a.id).length;rows.push({t:a.start,html:`<button class="drow" data-id="${a.id}" style="--c:var(--s-${a.by});--k:var(--k-${a.kind||'training'})">
+    <div class="t">${fmtTime(a.start)}</div>
+    <div class="c">${isJoey()&&!a.seen&&a.by!=='joey'?'<i class="dot" style="width:8px;height:8px;border-radius:50%;background:var(--warn);flex:none"></i>':''}<b>${esc(pName(a))}</b><small>${KINDS[a.kind||'training']} · ${a.dur} min${a.ex.length||a.paste?' · oefenschema':''}</small></div>
+    <div class="r">${sh?`<span class="shared" style="color:var(--warn);font-weight:700">👥 ${sh+1} tegelijk</span>`:''}<strong style="color:var(--s-${a.by})">${ini(staff(a.by))}</strong>${staff(a.by).name}</div></button>`})});
+  (date>=TODAY?freeSlots(date):[]).forEach(t=>rows.push({t,html:`<button class="drow dfree" data-free="${t}"><div class="t">${fmtTime(t)}</div><div class="c">+ vrij, inplannen</div><div class="r"></div></button>`}));
+  rows.sort((a,b)=>a.t-b.t);
+  return `<div class="dlist">${rows.map(r=>r.html).join('')}</div>`;
+}
+function layoutDay(date){
+  const evs=APPTS.filter(a=>a.date===date).sort((a,b)=>a.start-b.start||b.dur-a.dur);
+  const out=[];let cluster=[],end=-1;
+  const flush=()=>{const lanesEnd=[];cluster.forEach(o=>{let l=lanesEnd.findIndex(e=>e<=o.a.start);if(l<0){l=lanesEnd.length;lanesEnd.push(0)}lanesEnd[l]=o.a.start+o.a.dur;o.lane=l});
+    cluster.forEach(o=>{o.lanes=lanesEnd.length;o.shared=overlaps(date,o.a.start,o.a.dur,o.a.id).length;out.push(o)});cluster=[]};
+  evs.forEach(a=>{if(a.start>=end&&cluster.length){flush();end=-1}cluster.push({a});end=Math.max(end,a.start+a.dur)});
+  if(cluster.length)flush();
+  return out;
+}
+function weekNo(s){const d=d2(s);d.setDate(d.getDate()+3-((d.getDay()+6)%7));const w1=new Date(d.getFullYear(),0,4);return 1+Math.round(((d-w1)/864e5-3+((w1.getDay()+6)%7))/7)}
+const px=m=>`calc(var(--slot) * ${m/30})`;
+function colHTML(date){
+  const hrs=HOURS[wday(date)];
+  let off='';
+  if(!hrs)off=`<div class="off" style="top:0;height:100%"></div>`;
+  else{
+    if(hrs[0]>GRID0)off+=`<div class="off" style="top:0;height:${px(hrs[0]-GRID0)}"></div>`;
+    if(hrs[1]<GRID1)off+=`<div class="off" style="top:${px(hrs[1]-GRID0)};bottom:0"></div>`;
+  }
+  const free=date>=TODAY?freeSlots(date):[];
+  const fixed=FIXED.filter(f=>f.wd===wday(date));
+  return `<div class="col" style="height:${px(GRID1-GRID0)}">
+    ${off}
+    ${free.map(t=>`<button class="free" data-d="${date}" data-t="${t}" aria-label="Vrij ${fmtDate(date)} ${fmtTime(t)}, inplannen" style="top:calc(${px(t-GRID0)} + 2px);height:calc(var(--slot) - 4px)"></button>`).join('')}
+    ${fixed.map(f=>`<div class="ev blk ${f.title==='Lunch'?'lunch':''}" style="top:calc(${px(f.start-GRID0)} + 1px);height:calc(${px(f.dur)} - 3px)"><b>${esc(f.title)}</b></div>`).join('')}
+    ${layoutDay(date).map(({a,lane,lanes,shared})=>`<button class="ev ${a.done?'done':''}" data-id="${a.id}" style="--c:var(--s-${a.by});--k:var(--k-${a.kind||'training'});top:calc(${px(a.start-GRID0)} + 1px);height:calc(${px(a.dur)} - 3px);left:calc(${lane*100/lanes}% + ${lane?2:4}px);right:auto;width:calc(${100/lanes}% - 6px)">
+        ${shared?`<span class="shared" title="Tegelijk met ${shared} andere patiënt${shared>1?'en':''}">👥 ${shared+1} tegelijk</span>`:''}
+        ${isJoey()&&!a.seen&&a.by!=='joey'?'<i class="new" aria-label="Nieuw"></i>':''}
+        <b>${esc(pName(a))}</b><span>${fmtTime(a.start)} · <strong style="color:var(--s-${a.by})">${ini(staff(a.by))}</strong> ${staff(a.by).name}</span>
+      </button>`).join('')}
+    ${date===TODAY?`<div class="nowline" style="top:${px(NOW-GRID0)}"></div>`:''}
+  </div>`;
+}
+
+/* ---------- sheet ---------- */
+function openSheet(html,after){
+  const L=$('#layer');
+  L.innerHTML=`<div class="overlay" id="ov"><div class="sheet" role="dialog" aria-modal="true">${html}</div></div>`;
+  $('#ov').onclick=e=>{if(e.target.id==='ov')closeSheet()};
+  L.querySelectorAll('[data-close]').forEach(b=>b.onclick=closeSheet);
+  document.onkeydown=e=>{if(e.key==='Escape')closeSheet()};
+  after&&after(L);
+}
+function closeSheet(){$('#layer').innerHTML='';document.onkeydown=null}
+
+function exView(ex){
+  if(!ex||!ex.length)return `<p class="muted" style="margin:0">Geen oefeningen meegegeven.</p>`;
+  return `<div class="tbl-wrap"><table><thead><tr><th>Oefening</th><th>Sets × reps</th><th>Belasting / notitie</th></tr></thead>
+    <tbody>${ex.map(e=>`<tr><td>${esc(e.n)}</td><td class="setsreps">${esc(e.s)} × ${esc(e.r)}</td><td class="muted">${esc(e.l)}</td></tr>`).join('')}</tbody></table></div>`;
+}
+/* plakken uit Intramed: herken regels als "Leg extension 3x15" of een losse regel "3 x 15" onder de naam */
+function parsePaste(txt){
+  const lines=String(txt||'').split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
+  const rx=/(\d+)\s*[x×]\s*(\d+\s*(?:sec|s|min|m|meter)?)\b/i;
+  const out=[];let last=null;
+  lines.forEach(l=>{
+    const m=l.match(rx);
+    const clean=s=>s.replace(/^\s*(\d+[.)]|[-•*])\s*/,'').replace(/[\s:,–-]+$/,'').trim();
+    if(m){
+      let name=clean(l.slice(0,m.index));
+      const rest=l.slice(m.index+m[0].length).replace(/^[\s,–-]+/,'').trim();
+      if(!name&&last){name=last;out.pop()}
+      if(name){out.push({n:name,s:+m[1],r:m[2].replace(/\s+/g,' '),l:rest});last=null;return}
+    }
+    out.push({text:l});last=clean(l);
+  });
+  return {ex:out.filter(o=>o.n)};
+}
+function pasteView(txt){
+  if(!txt)return '';
+  const {ex}=parsePaste(txt);
+  return `<div class="box"><div style="display:flex;justify-content:space-between;gap:8px;align-items:center"><h3>Oefeningen <span class="hint" style="font-family:var(--font-body);font-weight:500">geplakt uit Intramed</span></h3><button class="btn small" id="copyPaste">Kopieer</button></div>
+    ${ex.length?exView(ex):''}
+    <details ${ex.length?'':'open'}><summary class="hint" style="cursor:pointer">Originele tekst</summary><pre style="white-space:pre-wrap;font-family:var(--font-body);margin:8px 0 0;background:var(--surface-2);padding:10px;border-radius:8px">${esc(txt)}</pre></details></div>`;
+}
+function facts(p){
+  if(!p)return '';
+  return `<div class="box"><div class="facts">
+    <div><span class="label">Doel</span>${esc(p.goal||'—')}</div>
+    <div><span class="label">Klacht</span>${esc(p.complaint||'—')}</div>
+    ${p.born?`<div><span class="label">Geboren</span><span class="mono">${p.born}</span></div>`:''}
+  </div>${p.notes?`<div class="err" style="font-weight:500;color:var(--fg)"><strong style="color:var(--warn)">Let op:</strong> ${esc(p.notes)}</div>`:''}</div>`;
+}
+
+function openAppt(id){
+  const a=APPTS.find(x=>x.id===id); const p=a.p?patient(a.p):null; const by=staff(a.by);
+  const wasNew=!a.seen;
+  if(isJoey())a.seen=true;
+  const history=a.p?APPTS.filter(x=>x.p===a.p&&x.id!==a.id).sort((x,y)=>(x.date+x.start).localeCompare(y.date+y.start)):[];
+  openSheet(`
+    <div class="sheet-head">
+      <div><div class="label">${fmtLong(a.date)} · ${fmtTime(a.start)}–${fmtTime(a.start+a.dur)}</div>
+      <h2>${esc(pName(a))}</h2>${!p?'<span class="pill nieuw">Nieuwe patiënt</span>':''}</div>
+      <button class="btn small" data-close>Sluiten</button>
+    </div>
+    <div class="box todo">
+      <div class="from">${avatarHTML(by.id)}
+        <div><strong>Ingepland door ${by.full}</strong><div class="muted" style="font-size:.85rem">${by.role}</div></div>
+        ${wasNew&&isJoey()?'<span class="pill nieuw" style="margin-left:auto">Nieuw</span>':''}</div>
+      <div class="label">Wat moet je doen</div>
+      <div class="todo-text">${esc(a.todo||'—')}</div>
+    </div>
+    ${a.ex.length||!a.paste?`<div class="box"><h3>Oefeningen</h3>${exView(a.ex)}</div>`:''}
+    ${pasteView(a.paste)}
+    ${facts(p)}
+    ${(()=>{const hl=LOG.filter(l=>l.appt===a.id);return hl.length?`<div class="box"><h3>Geschiedenis</h3>${hl.map(l=>`<div style="display:flex;gap:10px;align-items:center;font-size:.9rem">${avatarHTML(l.who,26)}<span style="flex:1"><strong>${staff(l.who).name}</strong> ${ACT[l.act]}${l.note?` (${esc(l.note)})`:''}${l.from?` (was ${esc(l.from)})`:''}</span><span class="muted mono" style="font-size:.8rem">${fmtAgo(l.at)}</span></div>`).join('')}</div>`:''})()}
+    ${(()=>{const w=overlaps(a.date,a.start,a.dur,a.id);return w.length?`<div class="warnbox"><strong>👥 Tegelijk met ${w.length} andere patiënt${w.length>1?'en':''}</strong>${w.map(x=>`<span>${esc(pName(x))} · ${fmtTime(x.start)}–${fmtTime(x.start+x.dur)} · via ${staff(x.by).name}</span>`).join('')}</div>`:''})()}
+    ${history.length?`<div class="box"><h3>Andere afspraken met ${esc(p.name.split(' ')[0])}</h3>${history.map(x=>`<div style="display:flex;justify-content:space-between;gap:8px;font-size:.9rem"><span>${fmtDate(x.date)} <span class="mono">${fmtTime(x.start)}</span></span><span class="muted">via ${staff(x.by).name}</span></div>`).join('')}</div>`:''}
+    <div class="actions">
+      ${isJoey()?`<button class="btn primary" id="done">${a.done?'Toch niet gedaan':'Afgerond'}</button>`:''}
+      <button class="btn" id="edit">Verzetten / aanpassen</button>
+      <button class="btn" id="addSame">+ Nog iemand om ${fmtTime(a.start)}</button>
+      <button class="btn ghost" id="del">Afspraak verwijderen</button>
+    </div>
+    <div id="delConfirm" hidden class="box"><strong>Afspraak met ${esc(pName(a))} verwijderen?</strong><div class="actions"><button class="btn primary" id="delYes">Ja, verwijderen</button><button class="btn" id="delNo">Nee</button></div></div>`,()=>{
+      $('#done')&&($('#done').onclick=()=>{a.done=!a.done;closeSheet();render();toast(a.done?'Afgerond':'Teruggezet')});
+      $('#copyPaste')&&($('#copyPaste').onclick=()=>{navigator.clipboard?.writeText(a.paste).then(()=>toast('Gekopieerd'),()=>toast('Kopiëren lukt hier niet, selecteer de tekst'))});
+      $('#edit').onclick=()=>openBooking({edit:a});
+      $('#addSame').onclick=()=>openBooking({date:a.date,start:a.start});
+      $('#del').onclick=()=>{$('#delConfirm').hidden=false};
+      $('#delNo').onclick=()=>{$('#delConfirm').hidden=true};
+      $('#delYes').onclick=()=>{logIt(S.me,'del',a);APPTS=APPTS.filter(x=>x!==a);closeSheet();render();toast('Afspraak verwijderd, het vak is weer vrij')};
+    });
+  render();
+}
+
+/* ---------- inplannen ---------- */
+function openBooking({date,start,edit}){
+  const a=edit||{};
+  date=edit?a.date:(date||TODAY); start=edit?a.start:(start??freeSlots(date)[0]??h(9));
+  let kind=edit&&!a.p?'nieuw':'bestaand';
+  let ex=edit?a.ex.map(e=>({...e})):[];
+  const times=[];for(let t=GRID0;t<GRID1;t+=15)times.push(t);
+  openSheet(`
+    <div class="sheet-head"><div><div class="label">${edit?'Afspraak aanpassen':'In Joey\u2019s agenda zetten'}</div><h2>${edit?esc(pName(a)):'Patiënt inplannen'}</h2></div>
+      <button class="btn small" data-close>Annuleren</button></div>
+    <form class="form" id="bf" novalidate>
+      <div class="box">
+        <h3>Wanneer</h3>
+        <div class="frow">
+          <label class="field"><span class="label">Datum</span><input type="date" id="fD" value="${date}"></label>
+          <label class="field"><span class="label">Tijd</span><select id="fT">${times.map(t=>`<option value="${t}" ${t===start?'selected':''}>${fmtTime(t)}</option>`).join('')}</select></label>
+          <label class="field"><span class="label">Duur</span><select id="fU">${[30,45,60].map(m=>`<option ${m===(a.dur||45)?'selected':''}>${m}</option>`).join('')}</select></label>
+        </div>
+        <div class="field"><span class="label">Soort afspraak</span>
+          <input type="hidden" id="fK" value="${a.kind||'training'}">
+          <div class="kinds" role="radiogroup" aria-label="Soort afspraak">${Object.entries(KINDS).map(([k,n])=>`<button type="button" class="kind" role="radio" data-kind="${k}" aria-checked="${k===(a.kind||'training')}" style="--k:var(--k-${k})"><span class="sw2">${KICON[k]}</span><span><b>${n}</b><small>${KDESC[k]}</small></span></button>`).join('')}</div>
+        </div>
+        ${edit?'':`<label class="field"><span class="label">Herhalen</span><select id="fR"><option value="1">Eenmalig</option><option value="2">Elke week, 2 keer</option><option value="4">Elke week, 4 keer</option><option value="6">Elke week, 6 keer</option></select></label>`}
+        <div id="status"></div>
+      </div>
+      <div class="box">
+        <h3>Patiënt</h3>
+        ${edit?`<div>${esc(pName(a))}</div>`:`
+        <div class="seg" role="group"><button type="button" data-pk="bestaand" aria-pressed="true">Bestaande patiënt</button><button type="button" data-pk="nieuw" aria-pressed="false">Nieuwe patiënt</button></div>
+        <label class="field" id="wrapE"><select id="fP">${PATIENTS.map(p=>`<option value="${p.id}">${esc(p.name)}</option>`).join('')}</select></label>
+        <label class="field" id="wrapN" hidden><input id="fN" placeholder="Voor- en achternaam"></label>`}
+      </div>
+      <div class="box">
+        <h3>Wat moet Joey doen</h3>
+        <label class="field"><span class="label">Focus / instructie</span><textarea id="fTodo" placeholder="Bijv. focus op quadriceps, rustig opbouwen, geen draaibewegingen">${esc(a.todo||'')}</textarea></label>
+        <div class="label">Oefeningen</div>
+        <div class="seg" role="group"><button type="button" data-em="paste" aria-pressed="true">Plakken uit Intramed</button><button type="button" data-em="manual" aria-pressed="false">Zelf invullen</button></div>
+        <div id="emPaste" class="field">
+          <textarea id="fPaste" style="min-height:140px" placeholder="Kopieer het oefenprogramma in Intramed (Ctrl+C) en plak het hier (Ctrl+V)">${esc(a.paste||'')}</textarea>
+          <span class="hint" id="pasteInfo"></span>
+        </div>
+        <div id="emManual" hidden style="display:flex;flex-direction:column;gap:8px">
+        <div class="tbl-wrap"><table><thead><tr><th>Oefening</th><th>Sets</th><th>Reps</th><th>Belasting</th><th></th></tr></thead><tbody id="exBody"></tbody></table></div>
+        <button type="button" class="btn small" id="addEx" style="align-self:flex-start">+ Oefening</button>
+        <span class="hint">Tip: reps mag ook tijd of afstand zijn, zoals "30 s" of "20 m".</span>
+        </div>
+      </div>
+      <div class="actions"><button class="btn primary" type="submit" id="save">${edit?'Opslaan':'Inplannen'}</button></div>
+    </form>`,()=>{
+      const exBody=$('#exBody');
+      const drawEx=()=>{exBody.innerHTML=ex.map((e,i)=>`<tr>
+        <td><input data-i="${i}" data-k="n" value="${esc(e.n)}" placeholder="Leg extension" aria-label="Oefening"></td>
+        <td><input class="num" data-i="${i}" data-k="s" value="${esc(e.s)}" aria-label="Sets"></td>
+        <td><input class="num" data-i="${i}" data-k="r" value="${esc(e.r)}" aria-label="Reps"></td>
+        <td><input data-i="${i}" data-k="l" value="${esc(e.l)}" placeholder="10 kg" aria-label="Belasting"></td>
+        <td><button type="button" class="icon-btn" data-del="${i}" aria-label="Verwijder">×</button></td></tr>`).join('')||`<tr><td colspan="5" class="muted">Nog geen oefeningen.</td></tr>`;
+        exBody.querySelectorAll('input').forEach(i=>i.oninput=()=>{ex[+i.dataset.i][i.dataset.k]=i.value});
+        exBody.querySelectorAll('[data-del]').forEach(b=>b.onclick=()=>{ex.splice(+b.dataset.del,1);drawEx()});
+      };
+      if(!ex.length&&!edit)ex.push({n:'',s:3,r:15,l:''});
+      drawEx();
+      const setKind=k=>{$('#fK').value=k;document.querySelectorAll('[data-kind]').forEach(x=>x.setAttribute('aria-checked',x.dataset.kind===k))};
+      document.querySelectorAll('[data-kind]').forEach(b=>{b.onclick=()=>setKind(b.dataset.kind);b.onkeydown=e=>{const ks=Object.keys(KINDS),i=ks.indexOf($('#fK').value);if(e.key==='ArrowRight'||e.key==='ArrowDown'){e.preventDefault();setKind(ks[(i+1)%ks.length]);$(`[data-kind="${$('#fK').value}"]`).focus()}if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();setKind(ks[(i+ks.length-1)%ks.length]);$(`[data-kind="${$('#fK').value}"]`).focus()}}});
+      const setEm=m=>{document.querySelectorAll('[data-em]').forEach(x=>x.setAttribute('aria-pressed',x.dataset.em===m));$('#emPaste').hidden=m!=='paste';$('#emManual').hidden=m!=='manual'};
+      document.querySelectorAll('[data-em]').forEach(b=>b.onclick=()=>setEm(b.dataset.em));
+      setEm(edit&&edit.ex.length&&!edit.paste?'manual':'paste');
+      const info=()=>{const v=$('#fPaste').value.trim();const n=parsePaste(v).ex.length;
+        $('#pasteInfo').innerHTML=!v?'Opmaak maakt niet uit. Regels zoals "Leg extension 3x15" worden automatisch een oefening.':n?`<span style="color:var(--ok);font-weight:700">✓ ${n} oefening${n>1?'en':''} herkend</span> · de originele tekst blijft ook bewaard`:'Geplakt. Joey ziet de tekst precies zoals hij hier staat.'};
+      $('#fPaste').oninput=info;info();
+      $('#addEx').onclick=()=>{ex.push({n:'',s:3,r:12,l:''});drawEx();exBody.querySelector('tr:last-child input').focus()};
+      document.querySelectorAll('[data-pk]').forEach(b=>b.onclick=()=>{kind=b.dataset.pk;
+        document.querySelectorAll('[data-pk]').forEach(x=>x.setAttribute('aria-pressed',x===b));
+        $('#wrapE').hidden=kind!=='bestaand';$('#wrapN').hidden=kind!=='nieuw';setKind(kind==='nieuw'?'intake':'training')});
+      const check=()=>{
+        const d=$('#fD').value,t=+$('#fT').value,u=+$('#fU').value,r=edit?1:+$('#fR').value;
+        const res=[];for(let i=0;i<r;i++){const dd=addDays(d,7*i);res.push({d:dd,err:conflict(dd,t,u,edit&&edit.id)})}
+        res.forEach(x=>{x.with=x.err?[]:overlaps(x.d,t,u,edit&&edit.id)});
+        const bad=res.filter(x=>x.err), sh=res.filter(x=>x.with.length);
+        let html='';
+        if(bad.length===r)html=`<div class="err">${esc(bad[0].err)}</div>`;
+        else{
+          if(bad.length)html+=`<div class="err">${bad.length} van ${r} momenten kunnen niet (${bad.map(x=>fmtDate(x.d)).join(', ')}). Die worden overgeslagen.</div>`;
+          if(sh.length){const f=sh[0];
+            html+=`<div class="warnbox"><strong>👥 Joey is dan al met iemand bezig</strong>
+              <span>${r>1?`Op ${sh.map(x=>fmtDate(x.d)).join(', ')} heeft`:'Op dit moment heeft'} Joey al <b>${esc(listNames(f.with))}</b> (${f.with.map(a=>`${fmtTime(a.start)}–${fmtTime(a.start+a.dur)}, via ${staff(a.by).name}`).join('; ')}).</span>
+              <span>Je kunt toch inplannen. Joey helpt dan meerdere mensen tegelijk, dus zijn aandacht wordt verdeeld.</span></div>`}
+          else if(!bad.length)html=`<div class="pill ok" style="align-self:flex-start;font-size:.85rem;padding:5px 10px">✓ Joey is vrij${r>1?` op alle ${r} momenten`:''}</div>`;
+        }
+        $('#status').innerHTML=html;
+        $('#save').textContent=sh.length&&bad.length<r?(edit?'Toch opslaan':'Toch inplannen'):(edit?'Opslaan':'Inplannen');
+        $('#save').disabled=bad.length===r;$('#save').style.opacity=bad.length===r?.5:1;
+        return res;
+      };
+      ['fD','fT','fU','fR'].forEach(id=>$('#'+id)&&($('#'+id).onchange=check));
+      check();
+      $('#bf').onsubmit=e=>{e.preventDefault();
+        const res=check().filter(x=>!x.err); if(!res.length)return;
+        const cleanEx=ex.filter(x=>String(x.n).trim()).map(x=>({n:x.n.trim(),s:/^\d+$/.test(x.s)?+x.s:x.s,r:/^\d+$/.test(x.r)?+x.r:x.r,l:x.l}));
+        const kindSel=$('#fK').value, todo=$('#fTodo').value.trim(), t=+$('#fT').value, u=+$('#fU').value, paste=$('#fPaste').value.trim();
+        if(edit){const was=`${fmtDate(edit.date)} ${fmtTime(edit.start)}`,moved=edit.date!==$('#fD').value||edit.start!==t;Object.assign(edit,{kind:kindSel,date:$('#fD').value,start:t,dur:u,todo,ex:cleanEx,paste,seen:isJoey()?true:false,by:edit.by});logIt(S.me,moved?'move':'edit',edit,null,moved?{from:was}:{});closeSheet();render();toast(isJoey()?'Afspraak bijgewerkt':'Bijgewerkt, Joey krijgt een melding');return}
+        let pid=null,newName=null;
+        if(kind==='bestaand')pid=+$('#fP').value;else{newName=$('#fN').value.trim();if(!newName){$('#fN').focus();return}}
+        res.forEach(x=>{const na={id:nextId++,kind:kindSel,p:pid,newName,date:x.d,start:t,dur:u,by:S.me,todo,ex:cleanEx.map(e=>({...e})),paste,seen:S.me==='joey'};APPTS.push(na);logIt(S.me,'add',na,null,x.with.length?{note:'tegelijk met '+listNames(x.with)}:{})});
+        S.weekStart=addDays(res[0].d,-((wday(res[0].d)+6)%7));S.view='agenda';
+        closeSheet();render();
+        toast(`${isJoey()?'':'Joey krijgt een melding. '}${pName({p:pid,newName})} staat bij Joey op ${fmtDate(res[0].d)} ${fmtTime(t)}${res.length>1?` (+${res.length-1} weken)`:''}`);
+      };
+    });
+}
+
+/* ---------- meldingen (alleen Joey) ---------- */
+function renderNew(){
+  const list=LOG.filter(l=>l.who!=='joey');
+  const fresh=new Set(list.filter(l=>!l.read).map(l=>l.id));
+  $('#view').innerHTML=`<div style="display:flex;flex-direction:column;gap:14px">
+    <div><h2>Meldingen</h2><div class="muted">Elke keer dat een collega iets in je agenda zet, verzet of verwijdert, zie je hier wie het was.</div></div>
+    <div class="cards">${list.length?list.map(l=>{const a=APPTS.find(x=>x.id===l.appt);return `<button class="card" ${a?`data-ap="${a.id}"`:'disabled'} style="${fresh.has(l.id)?'border-color:var(--warn)':''}">
+      ${avatarHTML(l.who)}
+      <div class="body"><span><strong>${staff(l.who).full}</strong> ${ACT[l.act]}: <strong>${esc(l.pname)}</strong></span>
+        <span class="muted" style="font-size:.88rem">${l.act==='move'?`van ${esc(l.from)} naar `:''}${fmtLong(l.date)} om ${fmtTime(l.start)}${l.note?` · ${esc(l.note)}`:''}</span></div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="muted mono" style="font-size:.8rem;white-space:nowrap">${fmtAgo(l.at)}</span>${fresh.has(l.id)?'<span class="pill nieuw">Nieuw</span>':''}</div>
+    </button>`}).join(''):'<div class="empty">Nog geen meldingen.</div>'}</div></div>`;
+  document.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>openAppt(+b.dataset.ap));
+  list.forEach(l=>l.read=true);
+  $('#newBadge').hidden=true;
+}
+
+/* ---------- patiënten ---------- */
+function renderPatients(){
+  const list=PATIENTS.filter(p=>p.name.toLowerCase().includes(S.pFilter.toLowerCase()));
+  const p=patient(S.pSel)||PATIENTS[0];
+  const appts=APPTS.filter(a=>a.p===p.id).sort((a,b)=>(a.date+a.start).localeCompare(b.date+b.start));
+  const latest=[...appts].reverse().find(a=>a.ex.length||a.paste);
+  $('#view').innerHTML=`<div class="pgrid">
+    <div class="plist">
+      <input id="pf" placeholder="Zoek patiënt…" value="${esc(S.pFilter)}" aria-label="Zoek patiënt">
+      ${list.map(x=>`<button class="pitem" data-p="${x.id}" aria-current="${x.id===p.id}"><div class="avatar">${initials(x.name)}</div><div style="min-width:0"><strong>${esc(x.name)}</strong><div class="muted" style="font-size:.8rem">${esc(x.complaint)}</div></div></button>`).join('')}
+    </div>
+    <section class="profile">
+      <div class="sheet-head"><div><div class="label">Patiënt</div><h2>${esc(p.name)}</h2></div>
+        <button class="btn small primary" id="bookThis">Inplannen bij Joey</button></div>
+      ${facts(p)}
+      <div style="display:flex;flex-direction:column;gap:8px"><h3>Huidig oefenschema</h3>
+        <span class="hint">${latest?`Uit de afspraak van ${fmtDate(latest.date)}, meegegeven door ${staff(latest.by).name}`:''}</span>
+        ${latest&&!latest.ex.length&&latest.paste?exView(parsePaste(latest.paste).ex):exView(latest&&latest.ex)}</div>
+      <div style="display:flex;flex-direction:column;gap:8px"><h3>Afspraken bij Joey</h3>
+        ${appts.length?appts.map(a=>`<button class="card" data-ap="${a.id}" style="padding:10px 14px"><div class="when"><b>${fmtTime(a.start)}</b>${fmtDate(a.date)}</div><div class="body"><span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.todo)}</span><span class="muted" style="font-size:.82rem">via ${staff(a.by).name}</span></div>${a.done?'<span class="pill ok">Gedaan</span>':''}</button>`).join(''):'<p class="muted" style="margin:0">Nog geen afspraken.</p>'}
+      </div>
+    </section></div>`;
+  $('#pf').oninput=e=>{S.pFilter=e.target.value;renderPatients();const n=$('#pf');n.focus();n.setSelectionRange(n.value.length,n.value.length)};
+  document.querySelectorAll('[data-p]').forEach(b=>b.onclick=()=>{S.pSel=+b.dataset.p;renderPatients()});
+  document.querySelectorAll('[data-ap]').forEach(b=>b.onclick=()=>openAppt(+b.dataset.ap));
+  $('#bookThis').onclick=()=>{openBooking({});$('#fP').value=p.id};
+}
+
+/* ---------- rondleiding ---------- */
+const TOUR_COWORKER=[
+ {t:'Welkom in de agenda van Joey',b:'Hier zie je wanneer Joey vrij is en plan je zelf een patiënt bij hem in. Geen briefjes of losse berichten meer. Deze uitleg duurt een halve minuut.'},
+ {sel:'#me',t:'Kies eerst wie je bent',b:'Zo ziet Joey wie de afspraak heeft gemaakt. In de echte versie gaat dit vanzelf via je eigen login.'},
+ {sel:'.free',t:'Groen = Joey is vrij',b:'Klik op een groen vak om op dat moment een patiënt in te plannen. Gestreept betekent dat Joey er niet is.',prep:()=>{S.view='agenda';render()}},
+ {sel:'.ev[data-id]',t:'Klik op een afspraak',b:'Je ziet wie het heeft ingepland, wat Joey moet doen en de oefeningen met sets en herhalingen.'},
+ {sel:'.navbar',prep:()=>{S.view='agenda';S.mode='week';S.weekStart='2026-10-19';render()},t:'Snel navigeren',b:'Pijltjes voor vorige/volgende, <strong>Vandaag</strong> om terug te springen, en klik op een dag om alleen die dag als lijst te zien. Met <strong>Dag</strong> en <strong>Week</strong> wissel je de weergave.'},
+ {sel:'#book',t:'Of gebruik deze knop',b:'Handig als je een vaste tijd wilt kiezen of een afspraak een paar weken wilt herhalen.'},
+ {t:'Oefenschema uit Intramed plakken',b:'Open het oefenprogramma in Intramed, selecteer alles met <span class="kbd">Ctrl</span>+<span class="kbd">A</span>, kopieer met <span class="kbd">Ctrl</span>+<span class="kbd">C</span> en plak het bij het inplannen met <span class="kbd">Ctrl</span>+<span class="kbd">V</span>. Overtypen hoeft niet.'},
+ {sel:'.ev:has(.shared)',prep:()=>{S.view='agenda';S.weekStart='2026-10-19';render()},t:'Joey is al bezig? Dat mag',b:'Joey kan meerdere mensen tegelijk begeleiden. Plan je in op een moment dat hij al iemand heeft, dan zie je wie dat is en dat zijn aandacht verdeeld wordt. Je kunt dan toch inplannen. Twee patiënten tegelijk staan naast elkaar met 👥. In een afspraak zit ook de knop <strong>+ Nog iemand</strong> om er snel iemand bij te zetten. Alleen buiten werktijd en tijdens groepslessen gaat het niet.'},
+ {sel:'#helpBtn',t:'Vergeten hoe het werkt?',b:'Klik rechtsonder op <strong>Hulp</strong> en deze uitleg start opnieuw.'}
+];
+const TOUR_JOEY=[
+ {t:'Je eigen agenda',b:'Collega\'s plannen hier patiënten bij je in. Jij ziet altijd wie wat heeft gedaan.'},
+ {sel:'#newTab',t:'Meldingen',b:'Elke keer dat iemand iets inplant, verzet of verwijdert, staat het hier met naam en tijd.',prep:()=>{S.view='agenda';render()}},
+ {sel:'.ev[data-id]',t:'De gekleurde rand',b:'Elke collega heeft een eigen kleur en initialen. Een oranje stip betekent dat je de afspraak nog niet hebt geopend.'},
+ {sel:'.ev:has(.shared)',prep:()=>{S.view='agenda';S.weekStart='2026-10-19';render()},t:'Meerdere mensen tegelijk',b:'Collega\'s mogen iemand inplannen als je al iemand hebt. Ze krijgen dan een waarschuwing dat je aandacht verdeeld wordt. In de grid staat 👥, en in je meldingen zie je bij wie ze erbij zijn gezet.'},
+ {sel:'#helpBtn',t:'Uitleg nodig?',b:'Via <strong>Hulp</strong> start deze rondleiding opnieuw.'}
+];
+const tourMem={};
+const tourKey=()=>'meerzicht-tour-uit-'+S.me;
+function tourOff(){try{return localStorage.getItem(tourKey())==='1'}catch(e){return !!tourMem[S.me]}}
+function setTourOff(){tourMem[S.me]=1;try{localStorage.setItem(tourKey(),'1')}catch(e){}}
+let tourStep=0,tourSteps=[];
+function startTour(){closeSheet();tourSteps=isJoey()?TOUR_JOEY:TOUR_COWORKER;tourStep=0;drawTour()}
+function endTour(off){if(off){setTourOff();toast('Oké, de uitleg komt niet meer vanzelf. Hulp staat rechtsonder.')}$('#tourLayer').innerHTML='';window.onresize=null;document.onkeydown=null}
+function drawTour(){
+  const st=tourSteps[tourStep]; st.prep&&st.prep();
+  const el=st.sel?document.querySelector(st.sel):null;
+  if(el)el.scrollIntoView({block:'center',behavior:'instant'});
+  const last=tourStep===tourSteps.length-1;
+  $('#tourLayer').innerHTML=`<div class="tour" role="dialog" aria-modal="true" aria-labelledby="tT">
+    ${el?'<div class="spot" id="spot"></div>':'<div class="tour-shade"></div>'}
+    <div class="tcard" id="tcard">
+      <div style="display:flex;justify-content:space-between;align-items:center"><div class="tdots">${tourSteps.map((_,i)=>`<i class="${i===tourStep?'on':''}"></i>`).join('')}</div><span class="muted mono" style="font-size:.78rem">${tourStep+1}/${tourSteps.length}</span></div>
+      <h3 id="tT">${st.t}</h3><p>${st.b}</p>
+      <div class="actions" style="justify-content:flex-end">
+        ${tourStep?'<button class="btn small" id="tPrev">Vorige</button>':''}
+        <button class="btn small primary" id="tNext">${last?'Klaar':'Volgende'}</button>
+      </div>
+      <div class="tfoot"><button class="linkbtn" id="tLater">Later</button><button class="linkbtn" id="tOff">Niet meer laten zien</button></div>
+    </div></div>`;
+  const place=()=>{
+    const c=$('#tcard'),cw=c.offsetWidth,ch=c.offsetHeight,W=innerWidth,H=innerHeight;
+    if(!el){c.style.left=(W-cw)/2+'px';c.style.top=Math.max(16,(H-ch)/2)+'px';return}
+    const r=el.getBoundingClientRect(),pad=6,sp=$('#spot');
+    Object.assign(sp.style,{left:r.left-pad+'px',top:r.top-pad+'px',width:r.width+pad*2+'px',height:r.height+pad*2+'px'});
+    let top=r.bottom+14; if(top+ch>H-16)top=r.top-ch-14; if(top<16)top=Math.max(16,H-ch-16);
+    let left=Math.min(Math.max(16,r.left+r.width/2-cw/2),W-cw-16);
+    c.style.top=top+'px';c.style.left=left+'px';
+  };
+  place();window.onresize=place;
+  $('#tNext').onclick=()=>{if(last){endTour(false);toast('Je kunt aan de slag. Hulp nodig? Rechtsonder.')}else{tourStep++;drawTour()}};
+  $('#tPrev')&&($('#tPrev').onclick=()=>{tourStep--;drawTour()});
+  $('#tLater').onclick=()=>endTour(false);
+  $('#tOff').onclick=()=>endTour(true);
+  $('#tNext').focus();
+  document.onkeydown=e=>{if(e.key==='Escape')endTour(false);if(e.key==='ArrowRight'&&!last){tourStep++;drawTour()}if(e.key==='ArrowLeft'&&tourStep){tourStep--;drawTour()}};
+}
+$('#helpBtn').onclick=startTour;
+const meSel=$('#me'),prevChange=meSel.onchange;
+meSel.onchange=e=>{prevChange(e);if(!tourOff())setTimeout(startTour,150)};
+
+document.addEventListener('keydown',e=>{
+  if(S.view!=='agenda'||$('#layer').innerHTML||$('#tourLayer').innerHTML||/INPUT|TEXTAREA|SELECT/.test(e.target.tagName)||e.ctrlKey||e.metaKey||e.altKey)return;
+  const k=e.key.toLowerCase();
+  if(k==='arrowleft')$('#prev')?.click();else if(k==='arrowright')$('#next')?.click();
+  else if(k==='t')$('#today')?.click();else if(k==='d')$('[data-mode="dag"]')?.click();else if(k==='w')$('[data-mode="week"]')?.click();
+  else if(k==='n')$('#book')?.click();
+});
+
+seedLog();
+render();
+if(!tourOff())setTimeout(startTour,300);
+</script>

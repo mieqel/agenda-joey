@@ -1,0 +1,142 @@
+// Agenda Joey — Fysiotherapie Meerzicht
+// Tijden staan als minuten na middernacht (540 = 09:00), datums als kalenderdag (Europe/Amsterdam).
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // Neon, pooled
+  directUrl = env("DIRECT_URL") // Neon, direct (voor migraties)
+}
+
+model User {
+  id            String   @id // korte slug, bijv. "jasper"
+  name          String // volledige naam, "Jasper de Koning"
+  displayName   String // korte naam in de agenda, "Jasper"
+  roleLabel     String
+  hue           Int
+  isOwner       Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  tourDismissed Boolean  @default(false)
+  createdAt     DateTime @default(now())
+
+  patientsCreated     Patient[]     @relation("PatientCreatedBy")
+  appointmentsCreated Appointment[] @relation("AppointmentCreatedBy")
+  appointmentsUpdated Appointment[] @relation("AppointmentUpdatedBy")
+  activity            ActivityLog[]
+}
+
+model Patient {
+  id          Int      @id @default(autoincrement())
+  name        String
+  birthYear   Int?
+  goal        String?
+  complaint   String?
+  notes       String? // "Let op"
+  createdAt   DateTime @default(now())
+  createdById String
+  createdBy   User     @relation("PatientCreatedBy", fields: [createdById], references: [id])
+
+  appointments Appointment[]
+}
+
+enum AppointmentKind {
+  TRAINING
+  INTAKE
+  CONTROLE
+}
+
+model Appointment {
+  id              Int             @id @default(autoincrement())
+  patientId       Int?
+  patient         Patient?        @relation(fields: [patientId], references: [id])
+  newPatientName  String?
+  date            DateTime        @db.Date
+  startMinutes    Int
+  durationMinutes Int
+  kind            AppointmentKind @default(TRAINING)
+  instruction     String          @default("")
+  pastedPlan      String          @default("")
+  done            Boolean         @default(false)
+  seenByOwner     Boolean         @default(false)
+  createdById     String
+  createdBy       User            @relation("AppointmentCreatedBy", fields: [createdById], references: [id])
+  updatedById     String
+  updatedBy       User            @relation("AppointmentUpdatedBy", fields: [updatedById], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  deletedAt       DateTime?
+
+  exercises Exercise[]
+  activity  ActivityLog[]
+
+  @@index([date, deletedAt])
+  @@index([patientId])
+}
+
+model Exercise {
+  id            Int         @id @default(autoincrement())
+  appointmentId Int
+  appointment   Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  order         Int
+  name          String
+  sets          String
+  reps          String // "15", "30 s", "20 m"
+  load          String      @default("")
+
+  @@index([appointmentId])
+}
+
+model WorkingHours {
+  weekday      Int @id // 1 = maandag … 6 = zaterdag
+  startMinutes Int
+  endMinutes   Int
+}
+
+model FixedBlock {
+  id              Int    @id @default(autoincrement())
+  weekday         Int
+  startMinutes    Int
+  durationMinutes Int
+  title           String
+}
+
+enum ActivityAction {
+  ADD
+  EDIT
+  MOVE
+  DELETE
+}
+
+model ActivityLog {
+  id                  Int            @id @default(autoincrement())
+  actorId             String
+  actor               User           @relation(fields: [actorId], references: [id])
+  action              ActivityAction
+  appointmentId       Int
+  appointment         Appointment    @relation(fields: [appointmentId], references: [id])
+  patientNameSnapshot String
+  dateSnapshot        DateTime       @db.Date
+  startSnapshot       Int
+  fromSnapshot        String? // oude datum/tijd bij MOVE, bijv. "ma 19 okt 09:00"
+  note                String?
+  createdAt           DateTime       @default(now())
+  readByOwner         Boolean        @default(false)
+
+  @@index([appointmentId])
+  @@index([createdAt])
+}
+
+// Mislukte en gelukte inlogpogingen, voor rate limiting.
+model LoginAttempt {
+  id        Int      @id @default(autoincrement())
+  ip        String
+  userId    String?
+  success   Boolean
+  createdAt DateTime @default(now())
+
+  @@index([ip, createdAt])
+  @@index([userId, createdAt])
+}
