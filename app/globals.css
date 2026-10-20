@@ -6,9 +6,9 @@
   --bar:#dfe8f2; --bar-2:#f8fafd; --bar-fg:#1c232c; --bar-muted:#5d6977;
   --k-training:#fff4a0; --k-intake:#bdf2c6; --k-controle:#b9eef3; --k-groep:#dde1e7; --k-ink:#1c232c;
   --s-joey:#0e6e78; --s-sanne:#7a4fb0; --s-mark:#b0452f; --s-lotte:#3d6db8;
-  --font-display:"Segoe UI Variable Display","Segoe UI",var(--font-figtree),system-ui,sans-serif;
-  --font-body:"Segoe UI Variable Text","Segoe UI",var(--font-figtree),system-ui,sans-serif;
-  --font-mono:var(--font-jbmono),ui-monospace,Consolas,monospace;
+  --font-display:"Segoe UI Variable Display","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --font-body:"Segoe UI Variable Text","Segoe UI",system-ui,-apple-system,Roboto,sans-serif;
+  --font-mono:Consolas,ui-monospace,"Cascadia Mono",Menlo,monospace;
   --slot:30px;
 }
 @media (prefers-color-scheme: dark){:root:not([data-theme="light"]){

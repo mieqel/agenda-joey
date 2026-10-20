@@ -1,10 +1,5 @@
 import type { Metadata, Viewport } from 'next';
-import { Figtree, JetBrains_Mono } from 'next/font/google';
 import './globals.css';
-
-// next/font host de lettertypes zelf: geen verzoeken naar Google vanuit de browser
-const figtree = Figtree({ subsets: ['latin'], weight: ['400', '500', '600', '700'], variable: '--font-figtree' });
-const jbmono = JetBrains_Mono({ subsets: ['latin'], weight: ['500'], variable: '--font-jbmono' });
 
 export const metadata: Metadata = {
   title: 'Agenda Joey',
@@ -24,7 +19,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="nl" className={`${figtree.variable} ${jbmono.variable}`}>
+    <html lang="nl">
       <body>{children}</body>
     </html>
   );
