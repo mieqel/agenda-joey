@@ -20,7 +20,9 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
 
   const [date, setDate] = useState(edit?.date ?? opts.date ?? today);
   const [start, setStart] = useState(edit?.start ?? opts.start ?? 9 * 60);
-  const [dur, setDur] = useState(edit?.dur ?? 45);
+  const [dur, setDur] = useState(edit?.dur ?? 30);
+  // 30 of 60 min; een oude afspraak van 45 min houdt die duur tot je hem aanpast
+  const durs = edit && ![30, 60].includes(edit.dur) ? [30, edit.dur, 60] : [30, 60];
   // soort afspraak is uit de app gehaald; bestaande waarde blijft bij aanpassen behouden
   const kind = edit?.kind ?? 'training';
   const [repeat, setRepeat] = useState(1);
@@ -171,8 +173,8 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
             <label className="field">
               <span className="label">Duur</span>
               <select id="fU" value={dur} onChange={(e) => setDur(+e.target.value)}>
-                {[30, 45, 60].map((m) => (
-                  <option key={m} value={m}>{m}</option>
+                {durs.map((m) => (
+                  <option key={m} value={m}>{m} min</option>
                 ))}
               </select>
             </label>

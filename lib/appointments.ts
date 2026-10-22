@@ -64,7 +64,7 @@ const exercise = z.object({
 const base = {
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
   start: z.number().int().min(0).max(24 * 60 - 15).refine((v) => v % 15 === 0),
-  dur: z.union([z.literal(30), z.literal(45), z.literal(60)]),
+  dur: z.union([z.literal(30), z.literal(60)]),
   kind: z.enum(['training', 'intake', 'controle']),
   instruction: z.string().trim().max(5000).default(''),
   pastedPlan: z.string().trim().max(20000).default(''),
@@ -78,7 +78,8 @@ export const createSchema = z
     newPatientName: z.string().trim().max(120).nullable().default(null),
   })
   .refine((v) => v.patientId || v.newPatientName, { message: 'Kies een patiënt of vul een naam in.' });
-export const editSchema = z.object(base);
+// 45 min alleen nog voor bestaande afspraken van vóór de keuze 30/60
+export const editSchema = z.object({ ...base, dur: z.union([z.literal(30), z.literal(45), z.literal(60)]) });
 
 type CreateInput = z.infer<typeof createSchema>;
 type EditInput = z.infer<typeof editSchema>;
