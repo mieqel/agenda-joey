@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { Fragment, useEffect } from 'react';
 import useSWR from 'swr';
-import { freeSlots, gridBounds, layoutDay, overlapping } from '@/lib/schedule';
+import { everyLabel, freeSlots, gridBounds, groupsOn, layoutDay, overlapping, type GroupOcc } from '@/lib/schedule';
 import { addDays, DAYS, fmtDate, fmtLong, fmtTime, MONTHS, wday, weekStartOf } from '@/lib/time';
 import { initials } from '@/lib/staff';
 import { Avatar } from '../components/Avatar';
@@ -21,7 +21,7 @@ function weekNo(s: string) {
 }
 
 export function AgendaView() {
-  const { me, staff, nav, setNav, openAppt, openBooking, sheet, tourOpen, today } = useApp();
+  const { me, staff, nav, setNav, openBooking, openGroup, openGroupForm, sheet, tourOpen, today } = useApp();
   const { data } = useSWR<AgendaData>(`/api/agenda?week=${nav.weekStart}`);
   const { data: unread } = useSWR<Unread>(me.isOwner ? '/api/unread' : null);
   const hours = data?.hours ?? {};
@@ -30,6 +30,7 @@ export function AgendaView() {
   const days = Array.from({ length: nDays }, (_, i) => addDays(nav.weekStart, i));
   const lastDay = days[days.length - 1];
   const dag = nav.mode === 'dag';
+  const weekGroups = data ? days.flatMap((d) => groupsOn(data.groups, d)) : [];
 
   const stepDay = (n: number) => {
     let d = addDays(nav.day, n);
@@ -54,6 +55,7 @@ export function AgendaView() {
       else if (k === 'd') setMode('dag');
       else if (k === 'w') setMode('week');
       else if (k === 'n') openBooking({});
+      else if (k === 'g' && me.isOwner) openGroupForm({});
       else return;
       e.preventDefault();
     };
@@ -109,6 +111,7 @@ export function AgendaView() {
         <div className="daystrip" role="group" aria-label="Kies een dag">
           {days.map((d) => {
             const n = data?.appts.filter((a) => a.date === d).length ?? 0;
+            const gs = weekGroups.filter((g) => g.date === d);
             const dt = new Date(d + 'T12:00:00Z');
             return (
               <button
@@ -120,6 +123,11 @@ export function AgendaView() {
                 <small>{DAYS[dt.getUTCDay()]}</small>
                 <b>{dt.getUTCDate()}</b>
                 <i>{n ? `${n} afspr.` : 'leeg'}</i>
+                {gs.length > 0 && (
+                  <span className="gdots" aria-label={`${gs.length} overgenomen groep${gs.length > 1 ? 'en' : ''}`}>
+                    {gs.map((g) => <em key={g.id} style={{ background: `var(--s-${g.owner})` }} />)}
+                  </span>
+                )}
               </button>
             );
           })}
@@ -132,12 +140,50 @@ export function AgendaView() {
             <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.8"><rect x="2" y="3" width="12" height="10" rx="2" /><path d="M6 3v10M10 3v10" /></svg>Week
           </button>
         </div>
-        <button className="btn primary" id="book" onClick={() => openBooking({})}>+ Inplannen</button>
+        <div className="bookbtns">
+          {me.isOwner && (
+            <button className="btn grpbtn" onClick={() => openGroupForm({})} title="Groep van een collega overnemen (G)">
+              <GroupIcon /> Groep
+            </button>
+          )}
+          <button className="btn primary" id="book" onClick={() => openBooking({})}>+ Inplannen</button>
+        </div>
       </div>
+
+      {weekGroups.length > 0 && (
+        <section className="grpbar" aria-label="Overgenomen groepen deze week">
+          <div className="grpbar-h">
+            <GroupIcon />
+            <div>
+              <strong>{me.isOwner ? 'Groepen die je deze week overneemt' : 'Joey neemt deze week groepen over'}</strong>
+              <small>In deze tijd kan niemand bij Joey worden ingepland.</small>
+            </div>
+          </div>
+          <div className="grpbar-list">
+            {weekGroups.map((g) => (
+              <button
+                key={`${g.id}-${g.date}`}
+                className="gchip"
+                style={cssVars({ '--c': `var(--s-${g.owner})` })}
+                onClick={() => openGroup(g.id, g.date)}
+              >
+                <Avatar id={g.owner} name={staff[g.owner]?.name ?? g.ownerName} size={26} />
+                <span>
+                  <b>{g.ownerName}</b>
+                  <small>
+                    {fmtDate(g.date)} · {fmtTime(g.start)}–{fmtTime(g.start + g.dur)}
+                  </small>
+                </span>
+              </button>
+            ))}
+          </div>
+        </section>
+      )}
 
       <div className="legend">
         <span><i className="sw" style={{ background: 'var(--k-training)', border: '1px solid var(--line)' }} />Afspraak</span>
         <span><i className="sw" style={{ background: 'var(--k-groep)', border: '1px solid var(--line)' }} />Les (vast blok)</span>
+        <span><i className="sw sw-grp" />Overgenomen groep (kleur collega)</span>
         <span><i className="sw" style={{ background: 'var(--ok-soft)', border: '1px dashed var(--ok)' }} />Vrij</span>
         <span>
           <i className="sw" style={{ background: 'repeating-linear-gradient(135deg,var(--block) 0 3px,transparent 3px 6px)', border: '1px solid var(--line)' }} />
@@ -147,6 +193,11 @@ export function AgendaView() {
         <span style={{ marginLeft: 'auto' }}>
           Sneltoetsen: <span className="kbd">←</span> <span className="kbd">→</span> <span className="kbd">T</span> vandaag · <span className="kbd">D</span>/<span className="kbd">W</span> ·{' '}
           <span className="kbd">N</span> nieuw
+          {me.isOwner && (
+            <>
+              {' '}· <span className="kbd">G</span> groep
+            </>
+          )}
         </span>
       </div>
 
@@ -161,8 +212,36 @@ export function AgendaView() {
   );
 }
 
+function GroupIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" aria-hidden="true">
+      <circle cx="5.5" cy="5.5" r="2.2" />
+      <circle cx="11" cy="6.5" r="1.8" />
+      <path d="M1.8 13c.4-2.2 1.9-3.4 3.7-3.4s3.3 1.2 3.7 3.4M9.6 10.1c.5-.3 1-.4 1.4-.4 1.5 0 2.7 1 3 3" />
+    </svg>
+  );
+}
+
+/** Blok van een overgenomen groep in het weekrooster. */
+function GroupEv({ g, g0, pos }: { g: GroupOcc; g0: number; pos: React.CSSProperties }) {
+  const { openGroup } = useApp();
+  return (
+    <button
+      className="ev grp"
+      onClick={() => openGroup(g.id, g.date)}
+      style={{ ...cssVars({ '--c': `var(--s-${g.owner})` }), top: `calc(${px(g.start - g0)} + 1px)`, height: `calc(${px(g.dur)} - 3px)`, ...pos }}
+      title={`${g.title} · groep van ${g.ownerName} · ${everyLabel(g.every)}`}
+    >
+      <em className="gk">Groep {g.ownerName}</em>
+      <b>{g.title}</b>
+      <span>{fmtTime(g.start)}–{fmtTime(g.start + g.dur)} · Joey neemt over</span>
+    </button>
+  );
+}
+
 function WeekGrid({ days, data }: { days: string[]; data: AgendaData }) {
-  const [g0, g1] = gridBounds(data.hours, data.appts);
+  const occ = days.flatMap((d) => groupsOn(data.groups, d));
+  const [g0, g1] = gridBounds(data.hours, [...data.appts, ...occ]);
   return (
     <div className="grid-scroll">
       <div className="grid" style={{ gridTemplateColumns: `52px repeat(${days.length}, minmax(120px, 1fr))`, minWidth: 52 + days.length * 120 }}>
@@ -186,9 +265,19 @@ function WeekGrid({ days, data }: { days: string[]; data: AgendaData }) {
 function Col({ date, data, g0, g1 }: { date: string; data: AgendaData; g0: number; g1: number }) {
   const { me, staff, openAppt, openBooking } = useApp();
   const hrs = data.hours[wday(date)];
-  const free = freeSlots(date, data.hours, data.blocks, data.appts, data.today, data.now);
+  const free = freeSlots(date, data.hours, data.blocks, data.appts, data.today, data.now, data.groups);
   const fixed = data.blocks.filter((b) => b.weekday === wday(date));
-  const evs = layoutDay(data.appts.filter((a) => a.date === date));
+  const dayAppts = data.appts.filter((a) => a.date === date);
+  // groepen en afspraken samen in banen, zodat een afspraak tijdens een groep niet wegvalt (groep-id negatief)
+  const evs = layoutDay<Appt | (GroupOcc & { grp: true })>([
+    ...dayAppts,
+    ...groupsOn(data.groups, date).map((g) => ({ ...g, id: -g.id, grp: true as const })),
+  ]);
+  const lanePos = (lane: number, lanes: number) => ({
+    left: `calc(${(lane * 100) / lanes}% + ${lane ? 2 : 4}px)`,
+    right: 'auto',
+    width: `calc(${100 / lanes}% - 6px)`,
+  });
   return (
     <div className="col" style={{ height: px(g1 - g0) }}>
       {!hrs && <div className="off" style={{ top: 0, height: '100%' }} />}
@@ -212,41 +301,65 @@ function Col({ date, data, g0, g1 }: { date: string; data: AgendaData; g0: numbe
           <b>{f.title}</b>
         </div>
       ))}
-      {evs.map(({ a, lane, lanes, shared }) => (
-        <button
-          key={a.id}
-          className={`ev ${a.done ? 'done' : ''}`}
-          data-id={a.id}
-          onClick={() => openAppt(a.id)}
-          style={{
-            ...cssVars({ '--c': `var(--s-${a.by})`, '--k': 'var(--k-training)' }),
-            top: `calc(${px(a.start - g0)} + 1px)`,
-            height: `calc(${px(a.dur)} - 3px)`,
-            left: `calc(${(lane * 100) / lanes}% + ${lane ? 2 : 4}px)`,
-            right: 'auto',
-            width: `calc(${100 / lanes}% - 6px)`,
-          }}
-        >
-          {shared > 0 && (
-            <span className="shared" title={`Tegelijk met ${shared} andere patiënt${shared > 1 ? 'en' : ''}`}>👥 {shared + 1} tegelijk</span>
-          )}
-          {me.isOwner && !a.seen && a.by !== me.id && <i className="new" aria-label="Nieuw" />}
-          <b>{a.name}</b>
-          <span>
-            {fmtTime(a.start)} · <strong style={{ color: `var(--s-${a.by})` }}>{initials(staff[a.by]?.name ?? '')}</strong> {staff[a.by]?.displayName}
-          </span>
-        </button>
-      ))}
+      {evs.map(({ a, lane, lanes }) => {
+        if ('grp' in a) return <GroupEv key={a.id} g={{ ...a, id: -a.id }} g0={g0} pos={lanePos(lane, lanes)} />;
+        const shared = overlapping(dayAppts, date, a.start, a.dur, a.id).length;
+        return (
+          <button
+            key={a.id}
+            className={`ev ${a.done ? 'done' : ''}`}
+            data-id={a.id}
+            onClick={() => openAppt(a.id)}
+            style={{
+              ...cssVars({ '--c': `var(--s-${a.by})`, '--k': 'var(--k-training)' }),
+              top: `calc(${px(a.start - g0)} + 1px)`,
+              height: `calc(${px(a.dur)} - 3px)`,
+              ...lanePos(lane, lanes),
+            }}
+          >
+            {shared > 0 && (
+              <span className="shared" title={`Tegelijk met ${shared} andere patiënt${shared > 1 ? 'en' : ''}`}>👥 {shared + 1} tegelijk</span>
+            )}
+            {me.isOwner && !a.seen && a.by !== me.id && <i className="new" aria-label="Nieuw" />}
+            <b>{a.name}</b>
+            <span>
+              {fmtTime(a.start)} · <strong style={{ color: `var(--s-${a.by})` }}>{initials(staff[a.by]?.name ?? '')}</strong> {staff[a.by]?.displayName}
+            </span>
+          </button>
+        );
+      })}
       {date === data.today && data.now >= g0 && data.now <= g1 && <div className="nowline" style={{ top: px(data.now - g0) }} />}
     </div>
   );
 }
 
 function DayList({ date, data }: { date: string; data: AgendaData }) {
-  const { me, staff, openAppt, openBooking } = useApp();
+  const { me, staff, openAppt, openBooking, openGroup } = useApp();
   const hrs = data.hours[wday(date)];
-  if (!hrs) return <div className="empty">Joey werkt niet op {fmtLong(date)}.</div>;
+  const groups = groupsOn(data.groups, date);
+  if (!hrs && !groups.length) return <div className="empty">Joey werkt niet op {fmtLong(date)}.</div>;
   const rows: { t: number; key: string; el: JSX.Element }[] = [];
+  groups.forEach((g) =>
+    rows.push({
+      t: g.start,
+      key: 'g' + g.id,
+      el: (
+        <button className="drow dgrp" onClick={() => openGroup(g.id, g.date)} style={cssVars({ '--c': `var(--s-${g.owner})` })}>
+          <div className="t">{fmtTime(g.start)}</div>
+          <div className="c">
+            <b>{g.title}</b>
+            <small>
+              {fmtTime(g.start)}–{fmtTime(g.start + g.dur)} · {everyLabel(g.every)}
+            </small>
+          </div>
+          <div className="r">
+            <Avatar id={g.owner} name={staff[g.owner]?.name ?? g.ownerName} size={22} />
+            Groep {g.ownerName} · Joey neemt over
+          </div>
+        </button>
+      ),
+    }),
+  );
   data.blocks
     .filter((f) => f.weekday === wday(date))
     .forEach((f, i) =>
@@ -294,7 +407,7 @@ function DayList({ date, data }: { date: string; data: AgendaData }) {
         ),
       });
     });
-  freeSlots(date, data.hours, data.blocks, data.appts, data.today, data.now).forEach((t) =>
+  freeSlots(date, data.hours, data.blocks, data.appts, data.today, data.now, data.groups).forEach((t) =>
     rows.push({
       t,
       key: 'f' + t,

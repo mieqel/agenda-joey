@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { conflictReason, freeSlots, gridBounds, layoutDay, listNames, overlapping, type Block, type Hours } from './schedule';
+import { conflictReason, freeSlots, gridBounds, groupOn, layoutDay, listNames, nextDates, overlapping, type Block, type GroupRule, type Hours } from './schedule';
 
 const H = (hh: number, mm = 0) => hh * 60 + mm;
 const hours: Hours = { 1: [H(8), H(17)], 2: [H(8), H(17)], 3: [H(8), H(12, 30)], 4: [H(8), H(17)], 5: [H(8), H(13)] };
@@ -72,5 +72,28 @@ describe('overig', () => {
   it('listNames', () => {
     expect(listNames(['Henk'])).toBe('Henk');
     expect(listNames(['Henk', 'Ria', 'Piet'])).toBe('Henk, Ria en Piet');
+  });
+});
+
+describe('overgenomen groepen', () => {
+  const guido: GroupRule = {
+    id: 1, title: 'Groepsles', owner: 'guido', ownerName: 'Guido', start: H(11), dur: 120,
+    startDate: MA, endDate: null, every: 1, skip: [], note: '',
+  };
+  it('elke week op de weekdag van de eerste keer', () => {
+    expect(groupOn(guido, MA)).toBe(true);
+    expect(groupOn(guido, '2026-10-26')).toBe(true);
+    expect(groupOn(guido, DI)).toBe(false);
+    expect(groupOn(guido, '2026-10-12')).toBe(false); // vóór de eerste keer
+  });
+  it('om de week, overslaan en einddatum', () => {
+    const g = { ...guido, every: 2, skip: ['2026-11-02'], endDate: '2026-11-30' };
+    expect(nextDates(g, MA, 10)).toEqual(['2026-10-19', '2026-11-16', '2026-11-30']);
+    expect(nextDates(g, '2026-10-20', 1)).toEqual(['2026-11-16']);
+  });
+  it('blokkeert inplannen, met naam van de collega', () => {
+    expect(conflictReason(MA, H(12), 30, hours, blocks, [guido])).toBe('Joey neemt dan de groep van Guido over (11:00–13:00).');
+    expect(conflictReason(MA, H(13), 30, hours, blocks, [guido])).toBeNull();
+    expect(freeSlots(MA, hours, blocks, [], MA, 0, [guido])).not.toContain(H(11, 30));
   });
 });

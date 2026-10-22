@@ -3,6 +3,7 @@
 import { revalidatePath } from 'next/cache';
 import { prisma } from '@/lib/db';
 import { requireOwner } from '@/lib/session';
+import { colorByKey } from '@/lib/staff';
 
 export type FormState = { error?: string; ok?: string };
 
@@ -22,17 +23,30 @@ export async function addStaff(_: FormState, fd: FormData): Promise<FormState> {
   const name = String(fd.get('name') ?? '').trim();
   const displayName = String(fd.get('displayName') ?? '').trim() || name.split(' ')[0];
   const roleLabel = String(fd.get('roleLabel') ?? '').trim() || 'Fysiotherapeut';
-  const hue = Number(fd.get('hue'));
+  const color = String(fd.get('color') ?? '');
   if (name.length < 3 || !/^[A-Z]/.test(name)) return { error: 'Vul een volledige naam in, met hoofdletter (bijv. "Sanne de Wit").' };
-  if (!Number.isInteger(hue) || hue < 0 || hue > 359) return { error: 'Kleur moet tussen 0 en 359 liggen.' };
+  if (!colorByKey(color)) return { error: 'Kies een kleur.' };
+  if (await prisma.user.findUnique({ where: { color } })) return { error: 'Die kleur is al van een collega. Kies een andere.' };
 
   // id wordt de CSS-variabele --s-<id>: alleen a-z en 0-9
   const base = displayName.toLowerCase().normalize('NFD').replace(/[^a-z0-9]/g, '') || 'collega';
   let id = base;
   for (let n = 2; await prisma.user.findUnique({ where: { id } }); n++) id = base + n;
 
-  await prisma.user.create({ data: { id, name, displayName, roleLabel, hue } });
+  await prisma.user.create({ data: { id, name, displayName, roleLabel, hue: 0, color } });
   return done(`${name} is toegevoegd en kan inloggen met de gedeelde pincode.`);
+}
+
+/** Eigen kleur per collega; een kleur die al van iemand is kan niet. */
+export async function setStaffColor(fd: FormData) {
+  await requireOwner();
+  const id = String(fd.get('id'));
+  const color = String(fd.get('color'));
+  if (!colorByKey(color)) return;
+  const taken = await prisma.user.findUnique({ where: { color } });
+  if (taken && taken.id !== id) return;
+  await prisma.user.update({ where: { id }, data: { color } }).catch(() => {});
+  revalidatePath('/', 'layout');
 }
 
 export async function setStaffActive(fd: FormData) {

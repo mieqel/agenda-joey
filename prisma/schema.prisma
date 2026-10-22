@@ -16,7 +16,8 @@ model User {
   name          String // volledige naam, "Jasper de Koning"
   displayName   String // korte naam in de agenda, "Jasper"
   roleLabel     String
-  hue           Int
+  hue           Int // reservekleur als color leeg is
+  color         String?  @unique // sleutel uit PALETTE in lib/staff.ts; ieder z'n eigen kleur
   isOwner       Boolean  @default(false)
   isActive      Boolean  @default(true)
   tourDismissed Boolean  @default(false)
@@ -26,6 +27,8 @@ model User {
   appointmentsCreated Appointment[] @relation("AppointmentCreatedBy")
   appointmentsUpdated Appointment[] @relation("AppointmentUpdatedBy")
   activity            ActivityLog[]
+  groupsOwned         GroupTakeover[] @relation("GroupOwner")
+  groupsCreated       GroupTakeover[] @relation("GroupCreatedBy")
 }
 
 model Patient {
@@ -101,6 +104,28 @@ model FixedBlock {
   startMinutes    Int
   durationMinutes Int
   title           String
+}
+
+// Groep van een collega die Joey overneemt. Herhaalt elke `everyWeeks` weken op de weekdag van startDate,
+// t/m endDate (leeg = doorlopend). skipDates: losse keren dat het niet doorgaat.
+model GroupTakeover {
+  id              Int        @id @default(autoincrement())
+  title           String     @default("Groepsles")
+  ownerId         String // collega van wie de groep is
+  owner           User       @relation("GroupOwner", fields: [ownerId], references: [id])
+  startDate       DateTime   @db.Date
+  endDate         DateTime?  @db.Date
+  everyWeeks      Int        @default(1)
+  startMinutes    Int
+  durationMinutes Int
+  skipDates       DateTime[] @default([]) @db.Date
+  note            String     @default("")
+  createdById     String
+  createdBy       User       @relation("GroupCreatedBy", fields: [createdById], references: [id])
+  createdAt       DateTime   @default(now())
+  deletedAt       DateTime?
+
+  @@index([deletedAt])
 }
 
 enum ActivityAction {

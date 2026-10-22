@@ -30,6 +30,9 @@ export const addDays = (s: string, n: number) => {
   return iso(d);
 };
 
+/** Aantal dagen van a naar b (b later = positief). */
+export const daysBetween = (a: string, b: string) => Math.round((+d2(b) - +d2(a)) / 864e5);
+
 /** 0 = zondag … 6 = zaterdag */
 export const wday = (s: string) => d2(s).getUTCDay();
 

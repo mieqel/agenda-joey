@@ -8,7 +8,7 @@ export default async function LoginPage() {
   const users = await prisma.user.findMany({
     where: { isActive: true },
     orderBy: [{ isOwner: 'desc' }, { name: 'asc' }],
-    select: { id: true, name: true, displayName: true, roleLabel: true, hue: true, isOwner: true },
+    select: { id: true, name: true, displayName: true, roleLabel: true, hue: true, color: true, isOwner: true },
   });
   return (
     <>

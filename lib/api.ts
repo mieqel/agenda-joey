@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import { ZodError } from 'zod';
 import { auth } from '@/auth';
 import { prisma } from './db';
-import { ChangeError } from './appointments';
+import { ChangeError } from './errors';
 
 type Ctx = { params: Record<string, string> };
 

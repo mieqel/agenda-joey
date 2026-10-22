@@ -9,21 +9,21 @@ import { addDays, fmtDate, fmtTime, h, todayISO, toDbDate, weekStartOf } from '.
 const prisma = new PrismaClient();
 
 const STAFF = [
-  { id: 'joey', name: 'Joey Inge', displayName: 'Joey', roleLabel: 'Personal trainer', hue: 186, isOwner: true },
-  { id: 'anouk', name: 'Anouk Zwarteveld', displayName: 'Anouk', roleLabel: 'Fysiotherapeut, bekkenfysiotherapeut', hue: 330 },
-  { id: 'diana', name: 'Diana Ketelaars', displayName: 'Diana', roleLabel: 'Praktijkmanager', hue: 215 },
-  { id: 'guido', name: 'Guido de Rijk', displayName: 'Guido', roleLabel: 'Fysiotherapeut, oedeemfysiotherapeut', hue: 95 },
-  { id: 'jasper', name: 'Jasper de Koning', displayName: 'Jasper', roleLabel: 'Fysiotherapeut, manueel therapeut', hue: 12 },
-  { id: 'jeannette', name: 'Jeannette van Rooyen', displayName: 'Jeannette', roleLabel: 'Fysiotherapeut, manueel therapeut', hue: 280 },
-  { id: 'joeyve', name: 'Joey van Eeden', displayName: 'Joey v. Eeden', roleLabel: 'Fysiotherapeut, manueel therapeut i.o.', hue: 160 },
-  { id: 'joyce', name: 'Joyce Vermeulen', displayName: 'Joyce', roleLabel: 'Praktijkmanager', hue: 240 },
-  { id: 'marloes', name: 'Marloes de Rijk', displayName: 'Marloes', roleLabel: 'Fysiotherapeut, kinderfysiotherapeut', hue: 300 },
-  { id: 'maddy', name: 'Maddy de Jong', displayName: 'Maddy', roleLabel: 'Fysiotherapeut', hue: 350 },
-  { id: 'martin', name: 'Martin Vermeulen', displayName: 'Martin', roleLabel: 'Fysiotherapeut, geriatriefysiotherapeut', hue: 265 },
-  { id: 'perry', name: 'Perry Paauw', displayName: 'Perry', roleLabel: 'Fysiotherapeut', hue: 35 },
-  { id: 'tessa', name: 'Tessa Fleury', displayName: 'Tessa', roleLabel: 'Fysiotherapeut, manueel therapeut', hue: 200 },
-  { id: 'thomas', name: 'Thomas Eijgendaal', displayName: 'Thomas', roleLabel: 'Fysiotherapeut, psychosomatisch i.o.', hue: 55 },
-  { id: 'viresh', name: 'Viresh Khoesial', displayName: 'Viresh', roleLabel: 'Fysiotherapeut, manueel therapeut', hue: 125 },
+  { id: 'joey', name: 'Joey Inge', displayName: 'Joey', roleLabel: 'Personal trainer', hue: 186, color: 'petrol', isOwner: true },
+  { id: 'anouk', name: 'Anouk Zwarteveld', displayName: 'Anouk', roleLabel: 'Fysiotherapeut, bekkenfysiotherapeut', hue: 330, color: 'roze' },
+  { id: 'diana', name: 'Diana Ketelaars', displayName: 'Diana', roleLabel: 'Praktijkmanager', hue: 215, color: 'blauw' },
+  { id: 'guido', name: 'Guido de Rijk', displayName: 'Guido', roleLabel: 'Fysiotherapeut, oedeemfysiotherapeut', hue: 95, color: 'geel' },
+  { id: 'jasper', name: 'Jasper de Koning', displayName: 'Jasper', roleLabel: 'Fysiotherapeut, manueel therapeut', hue: 12, color: 'rood' },
+  { id: 'jeannette', name: 'Jeannette van Rooyen', displayName: 'Jeannette', roleLabel: 'Fysiotherapeut, manueel therapeut', hue: 280, color: 'paars' },
+  { id: 'joeyve', name: 'Joey van Eeden', displayName: 'Joey v. Eeden', roleLabel: 'Fysiotherapeut, manueel therapeut i.o.', hue: 160, color: 'smaragd' },
+  { id: 'joyce', name: 'Joyce Vermeulen', displayName: 'Joyce', roleLabel: 'Praktijkmanager', hue: 240, color: 'indigo' },
+  { id: 'marloes', name: 'Marloes de Rijk', displayName: 'Marloes', roleLabel: 'Fysiotherapeut, kinderfysiotherapeut', hue: 300, color: 'magenta' },
+  { id: 'maddy', name: 'Maddy de Jong', displayName: 'Maddy', roleLabel: 'Fysiotherapeut', hue: 350, color: 'bordeaux' },
+  { id: 'martin', name: 'Martin Vermeulen', displayName: 'Martin', roleLabel: 'Fysiotherapeut, geriatriefysiotherapeut', hue: 265, color: 'bruin' },
+  { id: 'perry', name: 'Perry Paauw', displayName: 'Perry', roleLabel: 'Fysiotherapeut', hue: 35, color: 'oranje' },
+  { id: 'tessa', name: 'Tessa Fleury', displayName: 'Tessa', roleLabel: 'Fysiotherapeut, manueel therapeut', hue: 200, color: 'hemelsblauw' },
+  { id: 'thomas', name: 'Thomas Eijgendaal', displayName: 'Thomas', roleLabel: 'Fysiotherapeut, psychosomatisch i.o.', hue: 55, color: 'limoen' },
+  { id: 'viresh', name: 'Viresh Khoesial', displayName: 'Viresh', roleLabel: 'Fysiotherapeut, manueel therapeut', hue: 125, color: 'groen' },
 ];
 
 // Joey: ma 10–18 (Uiterwaard), di 10–18:15, wo 10–16, do 10–18, vr 10–15, za 10–14
@@ -167,7 +167,12 @@ async function main() {
     }),
   });
 
-  console.log(`Seed klaar: ${STAFF.length} collega's, ${PATIENTS.length} patiënten, ${APPTS.length} afspraken (week van ${fmtDate(monday)}), ${LOG.length} meldingen.`);
+  // groep van Guido die Joey op maandag overneemt
+  await prisma.groupTakeover.create({
+    data: { ownerId: 'guido', title: 'Groepsles', startDate: toDbDate(monday), everyWeeks: 1, startMinutes: h(11), durationMinutes: 120, createdById: 'joey' },
+  });
+
+  console.log(`Seed klaar: ${STAFF.length} collega's, ${PATIENTS.length} patiënten, ${APPTS.length} afspraken (week van ${fmtDate(monday)}), ${LOG.length} meldingen, 1 overgenomen groep.`);
   console.log(`Eerste afspraak: ${fmtDate(monday)} ${fmtTime(h(9))}. Inloggen met de pincode uit APP_PIN.`);
 }
 

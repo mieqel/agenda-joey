@@ -1,6 +1,6 @@
 /* Typen en fetch-hulpjes voor de browser. */
 
-import type { Block, Hours } from '@/lib/schedule';
+import type { Block, GroupRule, Hours } from '@/lib/schedule';
 
 export type Kind = 'training' | 'intake' | 'controle';
 export const ACT: Record<string, string> = { ADD: 'heeft ingepland', EDIT: 'heeft aangepast', MOVE: 'heeft verzet', DELETE: 'heeft verwijderd' };
@@ -9,7 +9,9 @@ export type Appt = {
   id: number; patientId: number | null; name: string; date: string; start: number; dur: number;
   kind: Kind; by: string; hasPlan: boolean; done: boolean; seen: boolean;
 };
-export type AgendaData = { weekStart: string; today: string; now: number; hours: Hours; blocks: Block[]; appts: Appt[] };
+export type AgendaData = {
+  weekStart: string; today: string; now: number; hours: Hours; blocks: Block[]; groups: GroupRule[]; appts: Appt[];
+};
 export type Ex = { name: string; sets: string; reps: string; load: string };
 export type Lite = { id: number; date: string; start: number; dur: number; name: string; by: string; byName: string };
 export type Detail = {

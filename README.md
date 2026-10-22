@@ -6,8 +6,10 @@ Stack: Next.js 14 · Prisma 5.22.0 (**niet upgraden**) · Neon Postgres (Frankfu
 
 ## Wat zit erin
 
-- **Agenda:** week- en dagweergave (ma–za, rooster volgt de werktijden), groene vrije vakken, lanes voor overlappende afspraken, nu-lijn, sneltoetsen (← → T D W N). Ververst elke 25 seconden en als je terugkomt naar het venster.
-- **Inplannen:** datum/tijd/duur, herhalen 2/4/6 weken, bestaande of nieuwe patiënt, instructie, oefeningen plakken uit Intramed of zelf invullen. Live check: buiten werktijd of tijdens een vast blok = geblokkeerd, overlap met een andere patiënt = waarschuwing maar toegestaan.
+- **Agenda:** week- en dagweergave (ma–za, rooster volgt de werktijden), groene vrije vakken, lanes voor overlappende afspraken, nu-lijn, sneltoetsen (← → T D W N, G voor Joey). Ververst elke 25 seconden en als je terugkomt naar het venster.
+- **Inplannen:** datum/tijd/duur (30 of 60 min), herhalen elke week / om de week / elke 3 of 4 weken (2–12 keer), bestaande of nieuwe patiënt, instructie, oefeningen plakken uit Intramed of zelf invullen. Live check: buiten werktijd of tijdens een vast blok = geblokkeerd, overlap met een andere patiënt = waarschuwing maar toegestaan.
+- **Overgenomen groepen** (Joey zet ze in, iedereen ziet ze): groep van een collega in diens kleur, eenmalig of elke 1–4 weken, doorlopend of tot een datum. Eén keer overslaan, stoppen vanaf een datum of de reeks verwijderen. Blokkeert inplannen, net als een vast blok. Logica in [lib/groups.ts](lib/groups.ts) en `groupOn()` in [lib/schedule.ts](lib/schedule.ts).
+- **Kleuren:** iedere collega een eigen kleur uit `PALETTE` in [lib/staff.ts](lib/staff.ts) (uniek in de database), te wijzigen bij Instellingen.
 - **Afspraak:** wie het inplande, instructie, oefeningen, patiëntgegevens, geschiedenis, "tegelijk met", andere afspraken. Afgerond (Joey), verzetten, + nog iemand, verwijderen.
 - **Meldingen** (Joey): alles wat collega's deden, met badge en banner.
 - **Patiënten:** zoeken, profiel, huidig oefenschema, afspraken. Joey kan gegevens aanpassen en patiënten toevoegen.

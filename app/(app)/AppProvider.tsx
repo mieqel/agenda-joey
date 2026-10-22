@@ -2,15 +2,22 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { SWRConfig, useSWRConfig } from 'swr';
+import type { GroupRule } from '@/lib/schedule';
 import { weekStartOf } from '@/lib/time';
 import { fetcher, type Detail } from './client';
 import { Sheet } from './Sheet';
 import { Tour } from './Tour';
 
 export type Me = { id: string; name: string; displayName: string; isOwner: boolean; tourDismissed: boolean };
-export type Staff = { id: string; name: string; displayName: string; roleLabel: string };
+export type Staff = { id: string; name: string; displayName: string; roleLabel: string; isActive: boolean; isOwner: boolean };
 export type BookOpts = { date?: string; start?: number; edit?: Detail; patientId?: number };
-type SheetState = null | { type: 'appt'; id: number } | { type: 'book'; opts: BookOpts };
+export type GroupOpts = { date?: string; start?: number; edit?: GroupRule };
+type SheetState =
+  | null
+  | { type: 'appt'; id: number }
+  | { type: 'book'; opts: BookOpts }
+  | { type: 'group'; id: number; date: string }
+  | { type: 'groupForm'; opts: GroupOpts };
 export type Nav = { mode: 'week' | 'dag'; weekStart: string; day: string };
 
 type Ctx = {
@@ -20,6 +27,8 @@ type Ctx = {
   sheet: SheetState;
   openAppt: (id: number) => void;
   openBooking: (opts?: BookOpts) => void;
+  openGroup: (id: number, date: string) => void;
+  openGroupForm: (opts?: GroupOpts) => void;
   closeSheet: () => void;
   nav: Nav;
   setNav: (n: Partial<Nav>) => void;
@@ -69,6 +78,8 @@ function Inner({ me, staffList, today, children }: { me: Me; staffList: Staff[];
     sheet,
     openAppt: (id) => setSheet({ type: 'appt', id }),
     openBooking: (opts = {}) => setSheet({ type: 'book', opts }),
+    openGroup: (id, date) => setSheet({ type: 'group', id, date }),
+    openGroupForm: (opts = {}) => setSheet({ type: 'groupForm', opts }),
     closeSheet: () => setSheet(null),
     nav,
     setNav: (n) => setNavState((s) => ({ ...s, ...n })),

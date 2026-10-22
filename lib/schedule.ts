@@ -1,13 +1,45 @@
 /* Planningsregels — gedeeld door server (validatie) en browser (vrije vakken, live check). */
 
-import { fmtLong, fmtTime, wday } from './time';
+import { addDays, daysBetween, fmtLong, fmtTime, wday } from './time';
 
 export type Hours = Record<number, [number, number]>; // weekdag → [start, eind]
 export type Block = { weekday: number; start: number; dur: number; title: string };
 export type Timed = { id: number; date: string; start: number; dur: number };
 
-/** Reden waarom dit moment niet kan (buiten werktijd, vast blok), of null. */
-export function conflictReason(date: string, start: number, dur: number, hours: Hours, blocks: Block[]) {
+/** Groep van een collega die Joey overneemt, als herhaalregel. */
+export type GroupRule = {
+  id: number; title: string; owner: string; ownerName: string; start: number; dur: number;
+  startDate: string; endDate: string | null; every: number; skip: string[]; note: string;
+};
+export type GroupOcc = GroupRule & { date: string };
+
+/** "elke week", "om de week", "elke 3 weken" */
+export const everyLabel = (n: number) => (n === 1 ? 'elke week' : n === 2 ? 'om de week' : `elke ${n} weken`);
+
+/** Gaat de groep door op deze datum? */
+export function groupOn(g: GroupRule, date: string) {
+  if (date < g.startDate || (g.endDate && date > g.endDate) || g.skip.includes(date)) return false;
+  const d = daysBetween(g.startDate, date);
+  return d % (7 * g.every) === 0;
+}
+
+export const groupsOn = (groups: GroupRule[], date: string): GroupOcc[] =>
+  groups.filter((g) => groupOn(g, date)).map((g) => ({ ...g, date }));
+
+/** De eerstvolgende n keren vanaf `from` (inclusief). */
+export function nextDates(g: GroupRule, from: string, n: number) {
+  const out: string[] = [];
+  const steps = Math.max(0, Math.ceil(daysBetween(g.startDate, from) / (7 * g.every)));
+  for (let i = steps, guard = 0; out.length < n && guard < 400; i++, guard++) {
+    const d = addDays(g.startDate, i * 7 * g.every);
+    if (g.endDate && d > g.endDate) break;
+    if (!g.skip.includes(d)) out.push(d);
+  }
+  return out;
+}
+
+/** Reden waarom dit moment niet kan (buiten werktijd, vast blok, overgenomen groep), of null. */
+export function conflictReason(date: string, start: number, dur: number, hours: Hours, blocks: Block[], groups: GroupRule[] = []) {
   const wd = wday(date);
   const hrs = hours[wd];
   if (!hrs) return 'Joey werkt niet op deze dag.';
@@ -15,6 +47,8 @@ export function conflictReason(date: string, start: number, dur: number, hours: 
     return `Buiten werktijd. Joey werkt ${fmtLong(date)} van ${fmtTime(hrs[0])} tot ${fmtTime(hrs[1])}.`;
   const hit = blocks.find((b) => b.weekday === wd && start < b.start + b.dur && b.start < start + dur);
   if (hit) return `Joey heeft dan ${hit.title[0].toLowerCase() + hit.title.slice(1)} (${fmtTime(hit.start)}–${fmtTime(hit.start + hit.dur)}).`;
+  const g = groupsOn(groups, date).find((x) => start < x.start + x.dur && x.start < start + dur);
+  if (g) return `Joey neemt dan de groep van ${g.ownerName} over (${fmtTime(g.start)}–${fmtTime(g.start + g.dur)}).`;
   return null;
 }
 
@@ -23,13 +57,13 @@ export const overlapping = <T extends Timed>(appts: T[], date: string, start: nu
   appts.filter((a) => a.date === date && a.id !== ignoreId && start < a.start + a.dur && a.start < start + dur);
 
 /** Vrije halfuurvakken op een dag. Vandaag: alleen vanaf nu. */
-export function freeSlots(date: string, hours: Hours, blocks: Block[], appts: Timed[], today: string, now: number) {
+export function freeSlots(date: string, hours: Hours, blocks: Block[], appts: Timed[], today: string, now: number, groups: GroupRule[] = []) {
   const hrs = hours[wday(date)];
   if (!hrs || date < today) return [];
   const out: number[] = [];
   for (let t = hrs[0]; t + 30 <= hrs[1]; t += 30) {
     if (date === today && t < now) continue;
-    if (!conflictReason(date, t, 30, hours, blocks) && !overlapping(appts, date, t, 30).length) out.push(t);
+    if (!conflictReason(date, t, 30, hours, blocks, groups) && !overlapping(appts, date, t, 30).length) out.push(t);
   }
   return out;
 }

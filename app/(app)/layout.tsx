@@ -14,7 +14,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const me = await requireUser();
   // ook gedeactiveerde collega's: hun oude afspraken houden kleur en naam
   const staff = await prisma.user.findMany({
-    select: { id: true, name: true, displayName: true, roleLabel: true, hue: true },
+    select: { id: true, name: true, displayName: true, roleLabel: true, hue: true, color: true, isActive: true, isOwner: true },
     orderBy: { name: 'asc' },
   });
 
@@ -26,7 +26,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   return (
     <AppProvider
       me={{ id: me.id, name: me.name, displayName: me.displayName, isOwner: me.isOwner, tourDismissed: me.tourDismissed }}
-      staffList={staff.map(({ hue: _hue, ...s }) => s)}
+      staffList={staff.map(({ hue: _hue, color: _color, ...s }) => s)}
       today={todayISO()}
     >
       <StaffColors users={staff} />

@@ -4,13 +4,20 @@ import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import useSWR from 'swr';
 import { parsePaste } from '@/lib/parse-paste';
-import { freeSlots, gridBounds, listNames } from '@/lib/schedule';
-import { fmtDate, fmtTime, weekStartOf } from '@/lib/time';
+import { everyLabel, freeSlots, gridBounds, listNames } from '@/lib/schedule';
+import { addDays, fmtDate, fmtTime, weekStartOf } from '@/lib/time';
 import { useApp, type BookOpts } from './AppProvider';
 import { ApiError, send, type AgendaData, type Ex, type Lite } from './client';
 
 type Result = { date: string; err: string | null; with: Lite[] };
 const isDate = (s: string) => /^\d{4}-\d{2}-\d{2}$/.test(s);
+const REPEAT = [
+  { v: 0, label: 'Eenmalig' },
+  { v: 1, label: 'Elke week' },
+  { v: 2, label: 'Om de week' },
+  { v: 3, label: 'Elke 3 weken' },
+  { v: 4, label: 'Elke 4 weken' },
+];
 
 export function BookingForm({ opts }: { opts: BookOpts }) {
   const { me, today, closeSheet, refresh, toast, setNav } = useApp();
@@ -25,7 +32,9 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
   const durs = edit && ![30, 60].includes(edit.dur) ? [30, edit.dur, 60] : [30, 60];
   // soort afspraak is uit de app gehaald; bestaande waarde blijft bij aanpassen behouden
   const kind = edit?.kind ?? 'training';
-  const [repeat, setRepeat] = useState(1);
+  const [every, setEvery] = useState(0); // 0 = eenmalig, anders om de zoveel weken
+  const [count, setCount] = useState(6);
+  const repeat = every ? count : 1;
   const [pk, setPk] = useState<'bestaand' | 'nieuw'>('bestaand');
   const [patientId, setPatientId] = useState<number | null>(opts.patientId ?? null);
   const [pFilter, setPFilter] = useState('');
@@ -48,7 +57,7 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
   useEffect(() => {
     if (pickedStart.current || !week) return;
     pickedStart.current = true;
-    const f = freeSlots(date, week.hours, week.blocks, week.appts, week.today, week.now);
+    const f = freeSlots(date, week.hours, week.blocks, week.appts, week.today, week.now, week.groups);
     if (f.length) setStart(f[0]);
   }, [week, date]);
 
@@ -77,7 +86,7 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
       fetch('/api/availability', {
         method: 'POST',
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ date, start, dur, repeat: reps, ignoreId: edit?.id }),
+        body: JSON.stringify({ date, start, dur, repeat: reps, every: every || 1, ignoreId: edit?.id }),
         signal: ctl.signal,
       })
         .then((r) => r.json())
@@ -88,7 +97,7 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
       clearTimeout(t);
       ctl.abort();
     };
-  }, [date, start, dur, reps, edit?.id]);
+  }, [date, start, dur, reps, every, edit?.id]);
 
   const bad = results?.filter((x) => x.err) ?? [];
   const sh = results?.filter((x) => x.with.length) ?? [];
@@ -124,6 +133,7 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
         const res: { created: { id: number; date: string }[]; name: string } = await send('/api/appointments', 'POST', {
           ...body,
           repeat,
+          every: every || 1,
           patientId: pk === 'bestaand' ? patientId : null,
           newPatientName: pk === 'nieuw' ? newName.trim() : null,
         });
@@ -131,7 +141,7 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
         setNav({ weekStart: weekStartOf(d0), day: d0 });
         toast(
           `${me.isOwner ? '' : 'Joey krijgt een melding. '}${res.name} staat bij Joey op ${fmtDate(d0)} ${fmtTime(start)}${
-            res.created.length > 1 ? ` (+${res.created.length - 1} weken)` : ''
+            res.created.length > 1 ? `, ${everyLabel(every || 1)} (${res.created.length} keer)` : ''
           }`,
         );
       }
@@ -180,15 +190,29 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
             </label>
           </div>
           {!edit && (
-            <label className="field">
+            <div className="field">
               <span className="label">Herhalen</span>
-              <select id="fR" value={repeat} onChange={(e) => setRepeat(+e.target.value)}>
-                <option value={1}>Eenmalig</option>
-                <option value={2}>Elke week, 2 keer</option>
-                <option value={4}>Elke week, 4 keer</option>
-                <option value={6}>Elke week, 6 keer</option>
-              </select>
-            </label>
+              <div className="chips" id="fR" role="radiogroup" aria-label="Herhalen">
+                {REPEAT.map((r) => (
+                  <button key={r.v} type="button" role="radio" aria-checked={every === r.v} onClick={() => setEvery(r.v)}>{r.label}</button>
+                ))}
+              </div>
+              {every > 0 && (
+                <div className="repeat-row">
+                  <label className="field" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <span className="label">Aantal keer</span>
+                    <select value={count} onChange={(e) => setCount(+e.target.value)} style={{ width: 'auto' }}>
+                      {[2, 3, 4, 5, 6, 8, 10, 12].map((n) => <option key={n} value={n}>{n}×</option>)}
+                    </select>
+                  </label>
+                  {isDate(date) && (
+                    <span className="hint">
+                      {fmtDate(date)} t/m {fmtDate(addDays(date, 7 * every * (count - 1)))}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
           )}
           <div aria-live="polite">
             {results && allBad && <div className="err">{bad[0].err}</div>}

@@ -2,8 +2,9 @@
 
 import { useEffect, useRef } from 'react';
 import { useFormState, useFormStatus } from 'react-dom';
+import { PALETTE, colorByKey } from '@/lib/staff';
 import { DAYSL } from '@/lib/time';
-import { addBlock, addStaff, saveHours, type FormState } from './actions';
+import { addBlock, addStaff, saveHours, setStaffColor, type FormState } from './actions';
 
 function Submit({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
@@ -29,9 +30,46 @@ function useResetOnOk(s: FormState) {
   return ref;
 }
 
-export function AddStaffForm({ suggestHue }: { suggestHue: number }) {
+/** Kleurstalen; kleuren die al van een ander zijn staan uit. */
+function Swatches({ taken, value, name = 'color', submit }: { taken: string[]; value?: string | null; name?: string; submit?: boolean }) {
+  return (
+    <div className="swatches" role="radiogroup" aria-label="Kleur">
+      {PALETTE.map((p) => {
+        const off = taken.includes(p.key) && p.key !== value;
+        const style = { '--sw-l': p.light, '--sw-d': p.dark } as React.CSSProperties;
+        return submit ? (
+          <button key={p.key} type="submit" name={name} value={p.key} className="swatch" style={style} disabled={off} aria-pressed={p.key === value} title={off ? `${p.name} (al in gebruik)` : p.name} aria-label={p.name} />
+        ) : (
+          <label key={p.key} className="swatch" style={style} title={off ? `${p.name} (al in gebruik)` : p.name} aria-disabled={off}>
+            <input type="radio" name={name} value={p.key} defaultChecked={p.key === value} disabled={off} aria-label={p.name} />
+          </label>
+        );
+      })}
+    </div>
+  );
+}
+
+export function ColorPicker({ id, value, taken }: { id: string; value: string | null; taken: string[] }) {
+  const ref = useRef<HTMLDetailsElement>(null);
+  const name = colorByKey(value)?.name ?? 'Kies kleur';
+  return (
+    <details ref={ref} className="colorpick">
+      <summary>
+        <i style={{ background: `var(--s-${id})` }} />
+        {name}
+      </summary>
+      <form action={async (fd) => { await setStaffColor(fd); if (ref.current) ref.current.open = false; }}>
+        <input type="hidden" name="id" value={id} />
+        <Swatches taken={taken} value={value} submit />
+      </form>
+    </details>
+  );
+}
+
+export function AddStaffForm({ taken }: { taken: string[] }) {
   const [s, action] = useFormState(addStaff, {});
   const ref = useResetOnOk(s);
+  const suggest = PALETTE.find((p) => !taken.includes(p.key))?.key;
   return (
     <form ref={ref} action={action} className="form" style={{ borderTop: '1px solid var(--line)', paddingTop: 12 }}>
       <div className="label">Collega toevoegen</div>
@@ -39,10 +77,10 @@ export function AddStaffForm({ suggestHue }: { suggestHue: number }) {
         <label className="field"><span className="label">Volledige naam</span><input name="name" placeholder="Sanne de Wit" required /></label>
         <label className="field"><span className="label">Naam in agenda</span><input name="displayName" placeholder="Sanne" /></label>
         <label className="field"><span className="label">Functie</span><input name="roleLabel" placeholder="Fysiotherapeut" /></label>
-        <label className="field">
-          <span className="label">Kleur (0–359)</span>
-          <input name="hue" type="number" min={0} max={359} defaultValue={suggestHue} />
-        </label>
+      </div>
+      <div className="field">
+        <span className="label">Eigen kleur</span>
+        {suggest ? <Swatches key={taken.join()} taken={taken} value={suggest} /> : <span className="hint">Alle kleuren zijn in gebruik. Deactiveer eerst iemand of geef iemand anders een andere kleur.</span>}
       </div>
       <Msg s={s} />
       <Submit>Toevoegen</Submit>

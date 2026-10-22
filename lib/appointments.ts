@@ -6,21 +6,27 @@ import { z } from 'zod';
 import { prisma } from './db';
 import { addDays, fmtDate, fmtTime, fromDbDate, toDbDate } from './time';
 import { conflictReason, listNames, overlapping, type Block, type Hours, type Timed } from './schedule';
+import { ChangeError } from './errors';
+import { loadGroups } from './groups';
 
-export class ChangeError extends Error {
-  constructor(message: string, public status = 400) {
-    super(message);
-  }
-}
+export { ChangeError };
 
 /* ---------- regels uit de database ---------- */
 
 export async function loadRules() {
-  const [h, b] = await Promise.all([prisma.workingHours.findMany(), prisma.fixedBlock.findMany({ orderBy: { startMinutes: 'asc' } })]);
+  const [h, b, groups] = await Promise.all([
+    prisma.workingHours.findMany(),
+    prisma.fixedBlock.findMany({ orderBy: { startMinutes: 'asc' } }),
+    loadGroups(),
+  ]);
   const hours: Hours = Object.fromEntries(h.map((x) => [x.weekday, [x.startMinutes, x.endMinutes]]));
   const blocks: Block[] = b.map((x) => ({ weekday: x.weekday, start: x.startMinutes, dur: x.durationMinutes, title: x.title }));
-  return { hours, blocks };
+  return { hours, blocks, groups };
 }
+
+/** Datums van een reeks: elke `every` weken, `times` keer. */
+export const seriesDates = (date: string, times: number, every: number) =>
+  Array.from({ length: times }, (_, i) => addDays(date, 7 * every * i));
 
 export const patientName = (a: { patient?: Pick<Patient, 'name'> | null; newPatientName?: string | null }) =>
   a.patient?.name ?? a.newPatientName ?? '—';
@@ -46,9 +52,9 @@ export async function apptsOn(dates: string[]): Promise<Lite[]> {
 
 /** Per datum: kan het (err) en wie is er dan al (with). */
 export async function checkSlots(dates: string[], start: number, dur: number, ignoreId?: number) {
-  const [{ hours, blocks }, appts] = await Promise.all([loadRules(), apptsOn(dates)]);
+  const [{ hours, blocks, groups }, appts] = await Promise.all([loadRules(), apptsOn(dates)]);
   return dates.map((date) => {
-    const err = conflictReason(date, start, dur, hours, blocks);
+    const err = conflictReason(date, start, dur, hours, blocks, groups);
     return { date, err, with: err ? [] : overlapping(appts, date, start, dur, ignoreId) };
   });
 }
@@ -73,7 +79,8 @@ const base = {
 export const createSchema = z
   .object({
     ...base,
-    repeat: z.union([z.literal(1), z.literal(2), z.literal(4), z.literal(6)]).default(1),
+    repeat: z.number().int().min(1).max(12).default(1), // aantal keer
+    every: z.number().int().min(1).max(4).default(1), // om de hoeveel weken
     patientId: z.number().int().nullable().default(null),
     newPatientName: z.string().trim().max(120).nullable().default(null),
   })
@@ -98,7 +105,7 @@ export async function changeAppointments(actor: User, change: Change) {
 
   if (change.op === 'add') {
     const v = change.input;
-    const dates = Array.from({ length: v.repeat }, (_, i) => addDays(v.date, 7 * i));
+    const dates = seriesDates(v.date, v.repeat, v.every);
     const checks = await checkSlots(dates, v.start, v.dur);
     const ok = checks.filter((c) => !c.err);
     if (!ok.length) throw new ChangeError(checks[0].err!);

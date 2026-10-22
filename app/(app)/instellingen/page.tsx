@@ -3,17 +3,7 @@ import { requireOwner } from '@/lib/session';
 import { DAYSL, fmtTime } from '@/lib/time';
 import { Avatar } from '../../components/Avatar';
 import { deleteBlock, setStaffActive } from './actions';
-import { AddBlockForm, AddStaffForm, HoursForm } from './forms';
-
-/** Kleur die het verst van de bestaande kleuren af ligt. */
-function freeHue(used: number[]) {
-  let best = 0, bestDist = -1;
-  for (let h = 0; h < 360; h += 5) {
-    const d = Math.min(...used.map((u) => Math.min(Math.abs(h - u), 360 - Math.abs(h - u))));
-    if (d > bestDist) [best, bestDist] = [h, d];
-  }
-  return best;
-}
+import { AddBlockForm, AddStaffForm, ColorPicker, HoursForm } from './forms';
 
 export default async function InstellingenPage() {
   const me = await requireOwner();
@@ -22,6 +12,7 @@ export default async function InstellingenPage() {
     prisma.workingHours.findMany(),
     prisma.fixedBlock.findMany({ orderBy: [{ weekday: 'asc' }, { startMinutes: 'asc' }] }),
   ]);
+  const taken = staff.flatMap((s) => (s.color ? [s.color] : []));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
@@ -35,6 +26,7 @@ export default async function InstellingenPage() {
         <p className="hint" style={{ margin: 0 }}>
           Iedereen logt in met de gedeelde pincode (APP_PIN in Vercel). Wijzig je de pincode, laat het dan je collega&apos;s weten.
           Gedeactiveerde collega&apos;s kunnen niet meer inloggen; hun afspraken en meldingen blijven bewaard.
+          Iedereen heeft een eigen kleur: die zie je bij afspraken die ze inplannen en bij groepen die je van ze overneemt.
         </p>
         <div className="tbl-wrap">
           <table>
@@ -43,6 +35,7 @@ export default async function InstellingenPage() {
                 <th></th>
                 <th>Naam</th>
                 <th>Functie</th>
+                <th>Kleur</th>
                 <th>Status</th>
                 <th></th>
               </tr>
@@ -58,6 +51,9 @@ export default async function InstellingenPage() {
                     {s.displayName !== s.name.split(' ')[0] && <div className="muted" style={{ fontSize: '.8rem' }}>In de agenda: {s.displayName}</div>}
                   </td>
                   <td className="muted">{s.isOwner ? 'Eigenaar agenda' : s.roleLabel}</td>
+                  <td>
+                    <ColorPicker id={s.id} value={s.color} taken={taken} />
+                  </td>
                   <td>{s.isActive ? <span className="pill ok">Actief</span> : <span className="pill nieuw">Gedeactiveerd</span>}</td>
                   <td style={{ textAlign: 'right' }}>
                     {s.id !== me.id && (
@@ -73,7 +69,7 @@ export default async function InstellingenPage() {
             </tbody>
           </table>
         </div>
-        <AddStaffForm suggestHue={freeHue(staff.map((s) => s.hue))} />
+        <AddStaffForm taken={taken} />
       </section>
 
       <section className="box">
