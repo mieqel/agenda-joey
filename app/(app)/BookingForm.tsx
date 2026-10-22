@@ -35,7 +35,8 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
   const [every, setEvery] = useState(0); // 0 = eenmalig, anders om de zoveel weken
   const [count, setCount] = useState(6);
   const repeat = every ? count : 1;
-  const [pk, setPk] = useState<'bestaand' | 'nieuw'>('bestaand');
+  // standaard een nieuwe naam; vanuit een patiëntprofiel meteen die patiënt
+  const [pk, setPk] = useState<'bestaand' | 'nieuw'>(opts.patientId ? 'bestaand' : 'nieuw');
   const [patientId, setPatientId] = useState<number | null>(opts.patientId ?? null);
   const [pFilter, setPFilter] = useState('');
   const [newName, setNewName] = useState('');
@@ -73,6 +74,40 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
     () => (patients ?? []).filter((p) => p.name.toLowerCase().includes(pFilter.trim().toLowerCase())),
     [patients, pFilter],
   );
+
+  // suggesties bij het typen van een naam: bestaande patiënten en eerder ingeplande namen
+  const { data: prevNames } = useSWR<string[]>(edit ? null : '/api/patients/names');
+  const [sugOpen, setSugOpen] = useState(false);
+  const [sugIdx, setSugIdx] = useState(0);
+  const sug = useMemo(() => {
+    const q = newName.trim().toLowerCase();
+    if (!q) return [];
+    const seen = new Set<string>();
+    const out: { key: string; name: string; patientId?: number; complaint?: string | null }[] = [];
+    for (const p of patients ?? []) {
+      if (p.name.toLowerCase().includes(q)) {
+        seen.add(p.name.toLowerCase());
+        out.push({ key: 'p' + p.id, name: p.name, patientId: p.id, complaint: p.complaint });
+      }
+    }
+    for (const n of prevNames ?? []) {
+      if (n.toLowerCase().includes(q) && !seen.has(n.toLowerCase())) {
+        seen.add(n.toLowerCase());
+        out.push({ key: 'n' + n, name: n });
+      }
+    }
+    // namen die met de zoekterm beginnen eerst
+    return out.sort((a, b) => +!a.name.toLowerCase().startsWith(q) - +!b.name.toLowerCase().startsWith(q)).slice(0, 6);
+  }, [newName, patients, prevNames]);
+  const showSug = sugOpen && sug.length > 0 && !(sug.length === 1 && !sug[0].patientId && sug[0].name === newName.trim());
+  const pickSug = (s: (typeof sug)[number]) => {
+    setSugOpen(false);
+    if (s.patientId) {
+      setPk('bestaand');
+      setPFilter(s.name);
+      setPatientId(s.patientId);
+    } else setNewName(s.name);
+  };
   useEffect(() => {
     if (filtered.length && !filtered.some((p) => p.id === patientId)) setPatientId(filtered[0].id);
   }, [filtered, patientId]);
@@ -252,10 +287,59 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
           ) : (
             <>
               <div className="seg" role="group">
-                <button type="button" aria-pressed={pk === 'bestaand'} onClick={() => setPk('bestaand')}>Bestaande patiënt</button>
                 <button type="button" aria-pressed={pk === 'nieuw'} onClick={() => setPk('nieuw')}>Nieuwe patiënt</button>
+                <button type="button" aria-pressed={pk === 'bestaand'} onClick={() => setPk('bestaand')}>Bestaande patiënt</button>
               </div>
-              {pk === 'bestaand' ? (
+              {pk === 'nieuw' ? (
+                <div className="field suggest-wrap">
+                  <input
+                    ref={newNameRef}
+                    placeholder="Voor- en achternaam"
+                    value={newName}
+                    autoComplete="off"
+                    role="combobox"
+                    aria-expanded={showSug}
+                    aria-controls="name-sug"
+                    aria-label="Naam patiënt"
+                    onChange={(e) => {
+                      setNewName(e.target.value);
+                      setSugOpen(true);
+                      setSugIdx(0);
+                    }}
+                    onFocus={() => setSugOpen(true)}
+                    onBlur={() => setSugOpen(false)}
+                    onKeyDown={(e) => {
+                      if (!showSug) return;
+                      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        setSugIdx((i) => (i + (e.key === 'ArrowDown' ? 1 : sug.length - 1)) % sug.length);
+                      } else if (e.key === 'Enter') {
+                        e.preventDefault();
+                        pickSug(sug[sugIdx]);
+                      }
+                    }}
+                  />
+                  {showSug && (
+                    <ul className="suggest" id="name-sug" role="listbox">
+                      {sug.map((s, i) => (
+                        <li
+                          key={s.key}
+                          role="option"
+                          aria-selected={i === sugIdx}
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            pickSug(s);
+                          }}
+                          onMouseEnter={() => setSugIdx(i)}
+                        >
+                          <b>{s.name}</b>
+                          <small>{s.patientId ? `Bestaande patiënt${s.complaint ? ` · ${s.complaint}` : ''}` : 'Eerder ingepland'}</small>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              ) : (
                 <div className="field">
                   <input placeholder="Zoek patiënt…" value={pFilter} onChange={(e) => setPFilter(e.target.value)} aria-label="Zoek patiënt" />
                   <select value={patientId ?? ''} onChange={(e) => setPatientId(+e.target.value)} aria-label="Patiënt">
@@ -265,10 +349,6 @@ export function BookingForm({ opts }: { opts: BookOpts }) {
                   </select>
                   {patients && !filtered.length && <span className="hint">Geen patiënt gevonden. Kies “Nieuwe patiënt” om een naam in te vullen.</span>}
                 </div>
-              ) : (
-                <label className="field">
-                  <input ref={newNameRef} placeholder="Voor- en achternaam" value={newName} onChange={(e) => setNewName(e.target.value)} />
-                </label>
               )}
             </>
           )}
