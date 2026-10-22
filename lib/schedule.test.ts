@@ -97,3 +97,29 @@ describe('overgenomen groepen', () => {
     expect(freeSlots(MA, hours, blocks, [], MA, 0, [guido])).not.toContain(H(11, 30));
   });
 });
+
+describe('layoutDay span', () => {
+  it('afspraak wordt breder als de baan ernaast op dat moment vrij is', () => {
+    const r = layoutDay([
+      { id: 1, date: DI, start: H(10), dur: 45 },
+      { id: 2, date: DI, start: H(10, 30), dur: 30 },
+      { id: 3, date: DI, start: H(11), dur: 30 },
+      { id: 4, date: DI, start: H(11), dur: 30 },
+    ]);
+    const byId = Object.fromEntries(r.map((o) => [o.a.id, o]));
+    expect(byId[1]).toMatchObject({ lane: 0, lanes: 2, span: 1 }); // naast 2
+    expect(byId[2]).toMatchObject({ lane: 1, span: 1 });
+    expect(byId[3].lanes).toBe(2);
+  });
+  it('alleen in een rustige baan: volle breedte', () => {
+    const r = layoutDay([
+      { id: 1, date: DI, start: H(10), dur: 30 },
+      { id: 2, date: DI, start: H(10, 15), dur: 60 },
+      { id: 3, date: DI, start: H(10, 15), dur: 30 },
+      { id: 4, date: DI, start: H(11), dur: 15 },
+    ]);
+    const byId = Object.fromEntries(r.map((o) => [o.a.id, o]));
+    expect(byId[1].lanes).toBe(3);
+    expect(byId[4]).toMatchObject({ lane: 0, span: 1 }); // id 2 loopt nog in baan 1
+  });
+});

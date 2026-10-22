@@ -273,10 +273,10 @@ function Col({ date, data, g0, g1 }: { date: string; data: AgendaData; g0: numbe
     ...dayAppts,
     ...groupsOn(data.groups, date).map((g) => ({ ...g, id: -g.id, grp: true as const })),
   ]);
-  const lanePos = (lane: number, lanes: number) => ({
+  const lanePos = (lane: number, lanes: number, span: number) => ({
     left: `calc(${(lane * 100) / lanes}% + ${lane ? 2 : 4}px)`,
     right: 'auto',
-    width: `calc(${100 / lanes}% - 6px)`,
+    width: `calc(${(100 * span) / lanes}% - 6px)`,
   });
   return (
     <div className="col" style={{ height: px(g1 - g0) }}>
@@ -301,8 +301,8 @@ function Col({ date, data, g0, g1 }: { date: string; data: AgendaData; g0: numbe
           <b>{f.title}</b>
         </div>
       ))}
-      {evs.map(({ a, lane, lanes }) => {
-        if ('grp' in a) return <GroupEv key={a.id} g={{ ...a, id: -a.id }} g0={g0} pos={lanePos(lane, lanes)} />;
+      {evs.map(({ a, lane, lanes, span }) => {
+        if ('grp' in a) return <GroupEv key={a.id} g={{ ...a, id: -a.id }} g0={g0} pos={lanePos(lane, lanes, span)} />;
         const shared = overlapping(dayAppts, date, a.start, a.dur, a.id).length;
         return (
           <button
@@ -310,19 +310,20 @@ function Col({ date, data, g0, g1 }: { date: string; data: AgendaData; g0: numbe
             className={`ev ${a.done ? 'done' : ''}`}
             data-id={a.id}
             onClick={() => openAppt(a.id)}
+            title={`${a.name} · ${fmtTime(a.start)}–${fmtTime(a.start + a.dur)} · via ${staff[a.by]?.displayName ?? a.by}`}
             style={{
               ...cssVars({ '--c': `var(--s-${a.by})`, '--k': 'var(--k-training)' }),
               top: `calc(${px(a.start - g0)} + 1px)`,
               height: `calc(${px(a.dur)} - 3px)`,
-              ...lanePos(lane, lanes),
+              ...lanePos(lane, lanes, span),
             }}
           >
-            {shared > 0 && (
-              <span className="shared" title={`Tegelijk met ${shared} andere patiënt${shared > 1 ? 'en' : ''}`}>👥 {shared + 1} tegelijk</span>
-            )}
             {me.isOwner && !a.seen && a.by !== me.id && <i className="new" aria-label="Nieuw" />}
             <b>{a.name}</b>
             <span>
+              {shared > 0 && (
+                <em className="shared" title={`Tegelijk met ${shared} andere patiënt${shared > 1 ? 'en' : ''}`}>👥{shared + 1}</em>
+              )}
               {fmtTime(a.start)} · <strong style={{ color: `var(--s-${a.by})` }}>{initials(staff[a.by]?.name ?? '')}</strong> {staff[a.by]?.displayName}
             </span>
           </button>

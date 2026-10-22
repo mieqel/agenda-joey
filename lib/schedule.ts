@@ -79,7 +79,7 @@ export function gridBounds(hours: Hours, appts: { start: number; dur: number }[]
 /** Overlappende afspraken naast elkaar zetten (banen). */
 export function layoutDay<T extends Timed>(evs: T[]) {
   const sorted = [...evs].sort((a, b) => a.start - b.start || b.dur - a.dur);
-  const out: { a: T; lane: number; lanes: number; shared: number }[] = [];
+  const out: { a: T; lane: number; lanes: number; span: number; shared: number }[] = [];
   let cluster: { a: T; lane: number }[] = [];
   let end = -1;
   const flush = () => {
@@ -93,9 +93,14 @@ export function layoutDay<T extends Timed>(evs: T[]) {
       lanesEnd[l] = o.a.start + o.a.dur;
       o.lane = l;
     });
-    cluster.forEach((o) =>
-      out.push({ ...o, lanes: lanesEnd.length, shared: overlapping(sorted, o.a.date, o.a.start, o.a.dur, o.a.id).length }),
-    );
+    // span: zo veel banen rechts erbij als er op dat moment vrij zijn, zodat een afspraak niet onnodig smal wordt
+    const busy = (lane: number, a: T) =>
+      cluster.some((x) => x.lane === lane && x.a.id !== a.id && a.start < x.a.start + x.a.dur && x.a.start < a.start + a.dur);
+    cluster.forEach((o) => {
+      let span = 1;
+      while (o.lane + span < lanesEnd.length && !busy(o.lane + span, o.a)) span++;
+      out.push({ ...o, lanes: lanesEnd.length, span, shared: overlapping(sorted, o.a.date, o.a.start, o.a.dur, o.a.id).length });
+    });
     cluster = [];
   };
   sorted.forEach((a) => {

@@ -355,3 +355,17 @@ td input.num{width:58px;min-width:0;font-family:var(--font-mono);text-align:cent
 .suggest li{display:flex;flex-direction:column;gap:1px;padding:7px 10px;border-radius:7px;cursor:pointer;line-height:1.25}
 .suggest li small{color:var(--muted);font-size:.78rem;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .suggest li[aria-selected="true"]{background:var(--accent-soft)}
+
+/* ---------- leesbaarheid rooster: hogere vakken, duidelijkere tekst ---------- */
+:root{--slot:36px}
+.ev{padding:2px 8px 2px 7px;font-size:.8rem;line-height:1.15;gap:0}
+.ev b{font-size:.85rem;font-weight:700;color:var(--k-ink);padding-right:10px}
+.ev span{font-size:.74rem;color:color-mix(in srgb,var(--k-ink) 80%,transparent)}
+.ev span strong{font-weight:800}
+.ev .shared{font-style:normal;font-size:.72rem;margin-right:5px;color:var(--warn)}
+.ev.blk b,.ev.grp b{padding-right:0}
+.ev.grp span{color:color-mix(in srgb,var(--fg) 82%,transparent)}
+.ev.grp .gk{font-size:.66rem}
+.free{font-size:.8rem}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--k-training:#4a4416}}
+:root[data-theme="dark"]{--k-training:#4a4416}
